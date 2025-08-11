@@ -25,14 +25,6 @@ let
   inherit (utils)
     escapeSystemdExecArgs
     ;
-
-  finalPackage = cfg.package.overridePythonAttrs (oldAttrs: {
-    dependencies =
-      oldAttrs.dependencies
-      # for transformer model support
-      ++ optionals cfg.useTransformers oldAttrs.optional-dependencies.transformers;
-  });
-
 in
 
 {
@@ -280,15 +272,21 @@ in
         ;
     in
     mkIf (cfg.servers != { }) {
-      assertions = mapAttrsToList (
-        server: options: {
-          assertion = options.useTransformers -> options.initialPromt == null;
-          message = "wyoming-faster-whisper/${server}: Transformer models (`useTransformers`) do not currently support an `initialPrompt`.";
-        }
-      );
+      assertions = mapAttrsToList (server: options: {
+        assertion = options.useTransformers -> options.initialPrompt == null;
+        message = "wyoming-faster-whisper/${server}: Transformer models (`useTransformers`) do not currently support an `initialPrompt`.";
+      }) cfg.servers;
 
       systemd.services = mapAttrs' (
         server: options:
+        let
+          finalPackage = cfg.package.overridePythonAttrs (oldAttrs: {
+            dependencies =
+              oldAttrs.dependencies
+              # for transformer model support
+              ++ optionals options.useTransformers oldAttrs.optional-dependencies.transformers;
+          });
+        in
         nameValuePair "wyoming-faster-whisper-${server}" {
           inherit (options) enable;
           description = "Wyoming faster-whisper server instance ${server}";
@@ -302,7 +300,8 @@ in
             "multi-user.target"
           ];
           # https://github.com/rhasspy/wyoming-faster-whisper/issues/27
-          environment."HF_HUB_CACHE" = "/tmp";
+          # https://github.com/NixOS/nixpkgs/issues/429974
+          environment."HF_HOME" = "/tmp";
           serviceConfig = {
             DynamicUser = true;
             User = "wyoming-faster-whisper";
