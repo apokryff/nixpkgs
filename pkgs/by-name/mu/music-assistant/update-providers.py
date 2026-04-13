@@ -56,6 +56,15 @@ PACKAGE_MAP = {
 }
 
 
+EXTRA_DEPS = {
+    "ytmusic": [
+        # https://github.com/music-assistant/server/blob/2.5.8/music_assistant/providers/ytmusic/__init__.py#L120
+        "bgutil-ytdlp-pot-provider",
+        "yt-dlp",
+    ],
+}
+
+
 def run_sync(cmd: List[str]) -> None:
     print(f"$ {' '.join(cmd)}")
     process = run(cmd)
@@ -114,7 +123,9 @@ async def get_provider_manifests(version: str = "master") -> List:
         basedir = Path(os.path.join(tmp, f"server-{version}"))
         sys.path.append(str(basedir))
 
-        for fn in basedir.glob("**/manifest.json"):
+        for fn in basedir.glob("**/providers/*/manifest.json"):
+            if "_demo_" in str(fn):
+                continue
             try:
                 manifests.append(await ProviderManifest.parse(str(fn)))
             except MissingField as ex:
@@ -191,7 +202,8 @@ async def resolve_providers(manifests) -> Set:
     providers = set()
     for manifest in manifests:
         provider = Provider(manifest.domain)
-        for requirement in manifest.requirements:
+        requirements = manifest.requirements + EXTRA_DEPS.get(manifest.domain, [])
+        for requirement in requirements:
             # allow substituting requirement specifications that packaging cannot parse
             if requirement in PACKAGE_MAP:
                 requirement = PACKAGE_MAP[requirement]

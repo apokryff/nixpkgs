@@ -3,13 +3,7 @@
   officialRelease,
   pkgs ? import nixpkgs.outPath { },
   nix ? pkgs.nix,
-  lib-tests ? import ../../lib/tests/release.nix {
-    pkgs = import nixpkgs.outPath {
-      config = {
-        permittedInsecurePackages = [ "nix-2.3.18" ];
-      };
-    };
-  },
+  lib-tests ? import ../../lib/tests/release.nix { inherit pkgs; },
 }:
 
 pkgs.releaseTools.sourceTarball {
@@ -50,11 +44,7 @@ pkgs.releaseTools.sourceTarball {
   checkPhase = ''
     echo "generating packages.json"
 
-    (
-      echo -n '{"version":2,"packages":'
-      NIX_STATE_DIR=$TMPDIR NIX_PATH= nix-env -f $src -qa --meta --json --show-trace --arg config 'import ${./packages-config.nix}'
-      echo -n '}'
-    ) | sed "s|$src/||g" | jq -c > packages.json
+    NIX_STATE_DIR=$TMPDIR NIX_PATH= nix-instantiate --eval --raw --expr "import $src/pkgs/top-level/packages-info.nix {}" | sed "s|$src/||g" | jq -c > packages.json
 
     # Arbitrary number. The index has ~115k packages as of April 2024.
     if [ $(jq -r '.packages | length' < packages.json) -lt 100000 ]; then

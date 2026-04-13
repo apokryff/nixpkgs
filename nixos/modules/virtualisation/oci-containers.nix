@@ -30,7 +30,7 @@ let
         };
 
         imageFile = mkOption {
-          type = with types; nullOr package;
+          type = with types; nullOr pathInStore;
           default = null;
           description = ''
             Path to an image file to load before running the image. This can
@@ -185,11 +185,9 @@ let
             Refer to the
             [Docker engine documentation](https://docs.docker.com/engine/network/#published-ports) for full details.
           '';
-          example = literalExpression ''
-            [
-              "127.0.0.1:8080:9000"
-            ]
-          '';
+          example = [
+            "127.0.0.1:8080:9000"
+          ];
         };
 
         user = mkOption {
@@ -387,7 +385,9 @@ let
   mkService =
     name: container:
     let
-      dependsOn = map (x: "${cfg.backend}-${x}.service") container.dependsOn;
+      dependsOn = lib.attrsets.mapAttrsToList (k: v: "${v.serviceName}.service") (
+        lib.attrsets.getAttrs container.dependsOn cfg.containers
+      );
       escapedName = escapeShellArg name;
       preStartScript = pkgs.writeShellApplication {
         name = "pre-start";
@@ -494,7 +494,7 @@ let
           filterAttrs (_: v: v == false) container.capabilities
         )
         ++ map (d: "--device=${escapeShellArg d}") container.devices
-        ++ map (n: "--network=${escapeShellArg n}") container.networks
+        ++ map (n: "--network=${escapeShellArg n}") (lib.lists.unique container.networks)
         ++ [ "--pull ${escapeShellArg container.pull}" ]
         ++ map escapeShellArg container.extraOptions
         ++ [ container.image ]
@@ -536,13 +536,13 @@ let
         ExecStartPre = [ "${preStartScript}/bin/pre-start" ];
         TimeoutStartSec = 0;
         TimeoutStopSec = 120;
-        Restart = "always";
+        Restart = "on-failure";
       }
       // optionalAttrs (cfg.backend == "podman") {
-        Environment = "PODMAN_SYSTEMD_UNIT=podman-${name}.service";
+        Environment = "PODMAN_SYSTEMD_UNIT=%n";
         Type = "notify";
         NotifyAccess = "all";
-        Delegate = mkIf (container.podman.sdnotify == "healthy") true;
+        Delegate = true;
         User = effectiveUser;
         RuntimeDirectory = escapedName;
       };
@@ -555,7 +555,7 @@ in
       backend = "docker";
       containers = lib.mapAttrs (
         n: v:
-        builtins.removeAttrs (
+        removeAttrs (
           v
           // {
             extraOptions = v.extraDockerOptions or [ ];
@@ -630,13 +630,9 @@ in
               inherit (config.users.users.${podman.user}) linger;
             in
             warnings
-            ++ lib.optional (podman.user != "root" && linger && podman.sdnotify == "conmon") ''
-              Podman container ${name} is configured as rootless (user ${podman.user})
-              with `--sdnotify=conmon`, but lingering for this user is turned on.
-            ''
-            ++ lib.optional (podman.user != "root" && !linger && podman.sdnotify == "healthy") ''
-              Podman container ${name} is configured as rootless (user ${podman.user})
-              with `--sdnotify=healthy`, but lingering for this user is turned off.
+            ++ lib.optional (podman.user != "root" && !linger) ''
+              Podman container ${name} is configured as rootless (user ${podman.user}),
+              but lingering for this user is turned off.
             ''
           ) [ ] cfg.containers
         );

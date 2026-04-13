@@ -1,72 +1,83 @@
 {
   lib,
   stdenv,
+  callPackage,
   rustPlatform,
   fetchFromGitHub,
-  gitMinimal,
   installShellFiles,
+  bubblewrap,
+  clang,
+  cmake,
+  gitMinimal,
+  libcap,
+  libclang,
+  librusty_v8 ? callPackage ./librusty_v8.nix {
+    inherit (callPackage ./fetchers.nix { }) fetchLibrustyV8;
+  },
+  makeBinaryWrapper,
   nix-update-script,
   pkg-config,
-  python3,
   openssl,
+  ripgrep,
   versionCheckHook,
   installShellCompletions ? stdenv.buildPlatform.canExecute stdenv.hostPlatform,
 }:
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "codex";
-  version = "0.20.0";
+  version = "0.118.0";
 
   src = fetchFromGitHub {
     owner = "openai";
     repo = "codex";
     tag = "rust-v${finalAttrs.version}";
-    hash = "sha256-v5PEj3T/eirAMpHHMR6LE9X8qDNhvCJP40Nleal3oOw=";
+    hash = "sha256-FdtV+CIqTInnegcXrXBxw4aE0JnNDh4GdYKwUDjSk9Y=";
   };
 
   sourceRoot = "${finalAttrs.src.name}/codex-rs";
 
-  cargoHash = "sha256-zgmiWyWB08v1WQVFzxpC/LGwF+XXbs8iW1d7i9Iw0Q4=";
+  cargoHash = "sha256-7rexlmc79eUkwcqTa8rN3GFDy1dWs+0h/SUllZqAcpM=";
 
   nativeBuildInputs = [
+    clang
+    cmake
+    gitMinimal
     installShellFiles
+    makeBinaryWrapper
     pkg-config
   ];
 
   buildInputs = [
+    libclang
     openssl
-    # Required because of codex-rs/login/src/login_with_chatgpt.py
-    python3
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isLinux [
+    libcap
   ];
 
-  nativeCheckInputs = [ gitMinimal ];
-
-  __darwinAllowLocalNetworking = true;
+  # NOTE: set LIBCLANG_PATH so bindgen can locate libclang, and adjust
+  # warning-as-error flags to avoid known false positives (GCC's
+  # stringop-overflow in BoringSSL's a_bitstr.cc) while keeping Clang's
+  # character-conversion warning-as-error disabled.
   env = {
-    # Disables sandbox tests which want to access /usr/bin/touch
-    CODEX_SANDBOX = "seatbelt";
-    # Skips tests that require networking
-    CODEX_SANDBOX_NETWORK_DISABLED = 1;
+    LIBCLANG_PATH = "${lib.getLib libclang}/lib";
+    NIX_CFLAGS_COMPILE = toString (
+      lib.optionals stdenv.cc.isGNU [
+        "-Wno-error=stringop-overflow"
+      ]
+      ++ lib.optionals stdenv.cc.isClang [
+        "-Wno-error=character-conversion"
+      ]
+    );
+    RUSTY_V8_ARCHIVE = librusty_v8;
   };
-  checkFlags = [
-    # Wants to access /bin/zsh
-    "--skip=shell::tests::test_run_with_profile_escaping_and_execution"
-    # Fails with 'stream ended unexpectedly: InternalAgentDied'
-    "--skip=includes_base_instructions_override_in_request"
-    # Fails with 'stream ended unexpectedly: InternalAgentDied'
-    "--skip=includes_user_instructions_message_in_request"
-    # Fails with 'stream ended unexpectedly: InternalAgentDied'
-    "--skip=originator_config_override_is_used"
-    # Fails with 'called `Result::unwrap()` on an `Err` value: NotPresent'
-    "--skip=azure_overrides_assign_properties_used_for_responses_url"
-    # Fails with 'called `Result::unwrap()` on an `Err` value: NotPresent'
-    "--skip=env_var_overrides_loaded_auth"
-    # Version 0.0.0 hardcoded
-    "--skip=test_conversation_create_and_send_message_ok"
-    # Version 0.0.0 hardcoded
-    "--skip=test_send_message_session_not_found"
-    # Version 0.0.0 hardcoded
-    "--skip=test_send_message_success"
-  ];
+
+  # NOTE: part of the test suite requires access to networking, local shells,
+  # apple system configuration, etc. since this is a very fast moving target
+  # (for now), with releases happening every other day, constantly figuring out
+  # which tests need to be skipped, or finding workarounds, was too burdensome,
+  # and in practice not adding any real value. this decision may be reversed in
+  # the future once this software stabilizes.
+  doCheck = false;
 
   postInstall = lib.optionalString installShellCompletions ''
     installShellCompletion --cmd codex \
@@ -75,12 +86,19 @@ rustPlatform.buildRustPackage (finalAttrs: {
       --zsh <($out/bin/codex completion zsh)
   '';
 
+  postFixup = ''
+    wrapProgram $out/bin/codex --prefix PATH : ${
+      lib.makeBinPath ([ ripgrep ] ++ lib.optionals stdenv.hostPlatform.isLinux [ bubblewrap ])
+    }
+  '';
+
   doInstallCheck = true;
   nativeInstallCheckInputs = [ versionCheckHook ];
 
   passthru = {
     updateScript = nix-update-script {
       extraArgs = [
+        "--use-github-releases"
         "--version-regex"
         "^rust-v(\\d+\\.\\d+\\.\\d+)$"
       ];
@@ -94,8 +112,9 @@ rustPlatform.buildRustPackage (finalAttrs: {
     license = lib.licenses.asl20;
     mainProgram = "codex";
     maintainers = with lib.maintainers; [
-      malo
       delafthi
+      jeafleohj
+      malo
     ];
     platforms = lib.platforms.unix;
   };

@@ -9,9 +9,8 @@
   jre_minimal,
   pydevd,
   pytest-mock,
-  pytestCheckHook,
+  pytest7CheckHook,
   pythonAtLeast,
-  pythonOlder,
   pyyaml,
   replaceVars,
 }:
@@ -20,8 +19,6 @@ buildPythonPackage rec {
   pname = "omegaconf";
   version = "2.3.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.6";
 
   src = fetchFromGitHub {
     owner = "omry";
@@ -60,13 +57,14 @@ buildPythonPackage rec {
     attrs
     pydevd
     pytest-mock
-    pytestCheckHook
+    pytest7CheckHook
   ];
 
   pythonImportsCheck = [ "omegaconf" ];
 
   pytestFlags = [
     "-Wignore::DeprecationWarning"
+    "-Wignore::UserWarning"
   ];
 
   disabledTests = [
@@ -80,11 +78,11 @@ buildPythonPackage rec {
     "test_type_str"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Framework for configuring complex applications";
     homepage = "https://github.com/omry/omegaconf";
     changelog = "https://github.com/omry/omegaconf/blob/v${version}/NEWS.md";
-    license = licenses.bsd3;
-    maintainers = with maintainers; [ bcdarwin ];
+    license = lib.licenses.bsd3;
+    maintainers = with lib.maintainers; [ bcdarwin ];
   };
 }

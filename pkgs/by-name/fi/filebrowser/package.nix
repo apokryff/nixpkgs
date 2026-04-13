@@ -1,64 +1,65 @@
 {
   lib,
-  stdenv,
   fetchFromGitHub,
-  buildGo123Module,
-  nodejs_22,
-  pnpm_9,
-
+  buildGoModule,
+  buildNpmPackage,
+  fetchPnpmDeps,
+  pnpmConfigHook,
+  nodejs_24,
+  pnpm_10,
+  nix-update-script,
   nixosTests,
 }:
 
 let
-  version = "2.40.1";
-
-  pnpm = pnpm_9;
-  nodejs = nodejs_22;
+  version = "2.63.2";
 
   src = fetchFromGitHub {
     owner = "filebrowser";
     repo = "filebrowser";
     rev = "v${version}";
-    hash = "sha256-UsY5pJU0eVeYQVi7Wqf4RrBfPLQv78zHi96mTLJJS1o=";
+    hash = "sha256-pAD7mEiDQyfmKmClO9oMLgPua0jOrcImiQrSGLvhCEA=";
   };
 
-  frontend = stdenv.mkDerivation (finalAttrs: {
+  frontend = buildNpmPackage rec {
     pname = "filebrowser-frontend";
     inherit version src;
 
-    nativeBuildInputs = [
-      nodejs
-      pnpm.configHook
-    ];
+    sourceRoot = "${src.name}/frontend";
 
-    pnpmRoot = "frontend";
+    nativeBuildInputs = [ pnpm_10 ];
+    npmConfigHook = pnpmConfigHook;
+    npmDeps = pnpmDeps;
+    nodejs = nodejs_24;
 
-    pnpmDeps = pnpm.fetchDeps {
-      inherit (finalAttrs) pname version src;
-      fetcherVersion = 2;
-      sourceRoot = "${src.name}/frontend";
-      hash = "sha256-AwjMQ9LDJ72x5JYdtLF4V3nxJTYiCb8e/RVyK3IwPY4=";
+    pnpmDeps = fetchPnpmDeps {
+      inherit
+        pname
+        version
+        src
+        sourceRoot
+        ;
+      fetcherVersion = 3;
+      pnpm = pnpm_10;
+      hash = "sha256-0n2HxluqIcCzo1QA5D/YRCk5+mbTntLA8PFxZAC3YA8=";
     };
 
     installPhase = ''
       runHook preInstall
 
-      pnpm install -C frontend --frozen-lockfile
-      pnpm run -C frontend build
-
       mkdir $out
-      mv frontend/dist $out
+      mv dist $out
 
       runHook postInstall
     '';
-  });
+  };
 
 in
-buildGo123Module {
+buildGoModule {
   pname = "filebrowser";
   inherit version src;
 
-  vendorHash = "sha256-FY5rPzWAzkrDaFktTM7VxO/hMk17/x21PL1sKq0zlxg=";
+  vendorHash = "sha256-YM/aIx1gDhFAKNNZmXvG3AVd4xSNC8AHIya4Gyeq9/Y=";
 
   excludedPackages = [ "tools" ];
 
@@ -71,17 +72,23 @@ buildGo123Module {
   ];
 
   passthru = {
+    updateScript = nix-update-script {
+      extraArgs = [
+        "--subpackage"
+        "frontend"
+      ];
+    };
     inherit frontend;
     tests = {
       inherit (nixosTests) filebrowser;
     };
   };
 
-  meta = with lib; {
-    description = "Filebrowser is a web application for managing files and directories";
+  meta = {
+    description = "Web application for managing files and directories";
     homepage = "https://filebrowser.org";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ oakenshield ];
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ oakenshield ];
     mainProgram = "filebrowser";
   };
 }

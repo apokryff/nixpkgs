@@ -1,28 +1,25 @@
 {
   lib,
   stdenv,
-  addDriverRunpath,
   cudaPackages,
   buildPythonPackage,
   fetchurl,
   python,
-  pythonOlder,
   autoPatchelfHook,
-  filelock,
-  lit,
   zlib,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "triton";
-  version = "3.3.1";
+  version = "3.6.0";
   format = "wheel";
 
   src =
     let
       pyVerNoDot = lib.replaceStrings [ "." ] [ "" ] python.pythonVersion;
       unsupported = throw "Unsupported system";
-      srcs = (import ./binary-hashes.nix version)."${stdenv.system}-${pyVerNoDot}" or unsupported;
+      srcs =
+        (import ./binary-hashes.nix finalAttrs.version)."${stdenv.system}-${pyVerNoDot}" or unsupported;
     in
     fetchurl srcs;
 
@@ -38,12 +35,6 @@ buildPythonPackage rec {
     autoPatchelfHook
   ];
 
-  propagatedBuildInputs = [
-    filelock
-    lit
-    zlib
-  ];
-
   dontStrip = true;
 
   # If this breaks, consider replacing with "${cuda_nvcc}/bin/ptxas"
@@ -55,7 +46,7 @@ buildPythonPackage rec {
   meta = {
     description = "Language and compiler for custom Deep Learning operations";
     homepage = "https://github.com/triton-lang/triton/";
-    changelog = "https://github.com/triton-lang/triton/releases/tag/v${version}";
+    changelog = "https://github.com/triton-lang/triton/releases/tag/v${finalAttrs.version}";
     # Includes NVIDIA's ptxas, but redistributions of the binary are not limited.
     # https://docs.nvidia.com/cuda/eula/index.html
     # triton's license is MIT.
@@ -65,6 +56,9 @@ buildPythonPackage rec {
       mit
     ];
     sourceProvenance = with lib.sourceTypes; [ binaryNativeCode ];
-    maintainers = with lib.maintainers; [ junjihashimoto ];
+    maintainers = with lib.maintainers; [
+      GaetanLepage
+      junjihashimoto
+    ];
   };
-}
+})

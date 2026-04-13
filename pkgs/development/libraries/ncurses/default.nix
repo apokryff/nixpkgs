@@ -8,7 +8,11 @@
   pkg-config,
   abiVersion ? "6",
   enableStatic ? stdenv.hostPlatform.isStatic,
-  withCxx ? !stdenv.hostPlatform.useAndroidPrebuilt,
+  # Disabled for static FreeBSD: libc++ headers come after C library headers,
+  # breaking C++ compilation. No current consumers need the C++ bindings.
+  withCxx ?
+    !stdenv.hostPlatform.useAndroidPrebuilt
+    && !(stdenv.hostPlatform.isFreeBSD && stdenv.hostPlatform.isStatic),
   mouseSupport ? false,
   gpm,
   withTermlib ? false,
@@ -18,12 +22,16 @@
 }:
 
 stdenv.mkDerivation (finalAttrs: {
-  version = "6.5";
+  version = "6.6";
   pname = "ncurses" + lib.optionalString (abiVersion == "5") "-abi5-compat";
 
   src = fetchurl {
-    url = "https://invisible-island.net/archives/ncurses/ncurses-${finalAttrs.version}.tar.gz";
-    hash = "sha256-E22RvCaamleF5fnpgLx2q1dCj2BM4+WlqQzrx2eXHMY=";
+    urls = [
+      "https://invisible-island.net/archives/ncurses/ncurses-${finalAttrs.version}.tar.gz"
+      # invisible-island.net may be firewall blocked on some networks
+      "https://invisible-mirror.net/archives/ncurses/ncurses-${finalAttrs.version}.tar.gz"
+    ];
+    hash = "sha256-NVtMu+2ICwOBoExGYXt2VuNiWF1S6c+Epn4gCbdJ/xE=";
   };
 
   outputs = [
@@ -32,6 +40,11 @@ stdenv.mkDerivation (finalAttrs: {
     "man"
   ];
   setOutputFlags = false; # some aren't supported
+  separateDebugInfo = false;
+
+  postPatch = ''
+    sed -i '1i #include <stdbool.h>' include/curses.h.in
+  '';
 
   # see other isOpenBSD clause below
   configurePlatforms =
@@ -45,14 +58,15 @@ stdenv.mkDerivation (finalAttrs: {
 
   configureFlags = [
     (lib.withFeature (!enableStatic) "shared")
-    "--without-debug"
     "--enable-pc-files"
     "--enable-symlinks"
     "--with-manpage-format=normal"
     "--disable-stripping"
     "--with-versioned-syms"
   ]
-  ++ lib.optional unicodeSupport "--enable-widec"
+  ++ lib.optional (!finalAttrs.separateDebugInfo) "--without-debug"
+  ++ lib.optional (unicodeSupport && abiVersion == "5") "--enable-widec"
+  ++ lib.optional (!unicodeSupport && abiVersion == "6") "--disable-widec"
   ++ lib.optional (!withCxx) "--without-cxx"
   ++ lib.optional (abiVersion == "5") "--with-abi-version=5"
   ++ lib.optional stdenv.hostPlatform.isNetBSD "--enable-rpath"
@@ -94,10 +108,28 @@ stdenv.mkDerivation (finalAttrs: {
     # which assumes that your openbsd is from the 90s, leading to a truly awful compiler/linker configuration.
     # No, autoreconfHook doesn't work.
     "--host=${stdenv.hostPlatform.config}${stdenv.cc.libc.version}"
+  ]
+  # Without this override, the upstream configure system results in
+  #
+  #     typedef unsigned char NCURSES_BOOL;
+  #     #define bool NCURSES_BOOL;
+  #
+  # Which breaks C++ bindings:
+  #
+  #      > /nix/store/[...]-gcc-15.1.0/include/c++/15.1.0/cstddef:81:21: error: redefinition of 'struct std::__byte_operand<unsigned char>'
+  #      >    81 |   template<> struct __byte_operand<unsigned char> { using __type = byte; };
+  #      >       |                     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  #      > /nix/store/[...]-gcc-15.1.0/include/c++/15.1.0/cstddef:78:21: note: previous definition of 'struct std::__byte_operand<unsigned char>'
+  #      >    78 |   template<> struct __byte_operand<bool> { using __type = byte; };
+  #
+  ++ [
+    "cf_cv_type_of_bool=bool"
   ];
 
   # Only the C compiler, and explicitly not C++ compiler needs this flag on solaris:
-  CFLAGS = lib.optionalString stdenv.hostPlatform.isSunOS "-D_XOPEN_SOURCE_EXTENDED";
+  env = lib.optionalAttrs stdenv.hostPlatform.isSunOS {
+    CFLAGS = "-D_XOPEN_SOURCE_EXTENDED";
+  };
 
   strictDeps = true;
 
@@ -134,12 +166,15 @@ stdenv.mkDerivation (finalAttrs: {
 
   doCheck = false;
 
-  postFixup =
+  postInstall =
     let
       abiVersion-extension =
         if stdenv.hostPlatform.isDarwin then "${abiVersion}.$dylibtype" else "$dylibtype.${abiVersion}";
     in
+    lib.optionalString (!stdenv.hostPlatform.isCygwin && !enableStatic) ''
+      rm "$out"/lib/*.a
     ''
+    + ''
       # Determine what suffixes our libraries have
       suffix="$(awk -F': ' 'f{print $3; f=0} /default library suffix/{f=1}' config.log)"
     ''
@@ -213,10 +248,6 @@ stdenv.mkDerivation (finalAttrs: {
       moveToOutput "bin/infocmp" "$out"
     '';
 
-  preFixup = lib.optionalString (!stdenv.hostPlatform.isCygwin && !enableStatic) ''
-    rm "$out"/lib/*.a
-  '';
-
   # I'm not very familiar with ncurses, but it looks like most of the
   # exec here will run hard-coded executables. There's one that is
   # dynamic, but it looks like it only comes from executing a terminfo
@@ -228,7 +259,7 @@ stdenv.mkDerivation (finalAttrs: {
     execer cannot bin/{reset,tput,tset}
   '';
 
-  meta = with lib; {
+  meta = {
     homepage = "https://www.gnu.org/software/ncurses/";
     description = "Free software emulation of curses in SVR4 and more";
     longDescription = ''
@@ -242,7 +273,7 @@ stdenv.mkDerivation (finalAttrs: {
       NetBSD as an external package. It should port easily to any
       ANSI/POSIX-conforming UNIX. It has even been ported to OS/2 Warp!
     '';
-    license = licenses.mit;
+    license = lib.licenses.mit;
     pkgConfigModules =
       let
         base = [
@@ -254,7 +285,8 @@ stdenv.mkDerivation (finalAttrs: {
         ++ lib.optional withCxx "ncurses++";
       in
       base ++ lib.optionals unicodeSupport (map (p: p + "w") base);
-    platforms = platforms.all;
+    platforms = lib.platforms.all;
+    identifiers.cpeParts = lib.meta.cpeFullVersionWithVendor "ncurses_project" finalAttrs.version;
   };
 
   passthru = {

@@ -9,14 +9,14 @@
 
 buildPythonPackage rec {
   pname = "django-pgtrigger";
-  version = "4.15.3";
+  version = "4.17.0";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "AmbitionEng";
     repo = "django-pgtrigger";
     tag = version;
-    hash = "sha256-aFjg4rCWM1F2O1zDBVo2zN1LhOPN+UyIZphuTHMAjhQ=";
+    hash = "sha256-LBuqaFFHP18LPI26CcYMVO7rJsDrCBtuVKhwoTr6ACA=";
   };
 
   build-system = [ poetry-core ];
@@ -31,7 +31,7 @@ buildPythonPackage rec {
   meta = {
     description = "Write Postgres triggers for your Django models";
     homepage = "https://github.com/Opus10/django-pgtrigger";
-    changelog = "https://github.com/Opus10/django-pgtrigger/blob/${src.rev}/CHANGELOG.md";
+    changelog = "https://github.com/Opus10/django-pgtrigger/blob/${src.tag}/CHANGELOG.md";
     license = lib.licenses.bsd3;
     maintainers = with lib.maintainers; [
       raitobezarius

@@ -3,20 +3,17 @@
   buildPythonPackage,
   cython,
   fetchPypi,
-  pythonOlder,
   setuptools,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "lupa";
-  version = "2.4";
+  version = "2.7";
   pyproject = true;
 
-  disabled = pythonOlder "3.7";
-
   src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-UwDSH4GqG9TUX1XjHd26O4eYlWlgaKP4TPy1/ZFIqs0=";
+    inherit (finalAttrs) pname version;
+    hash = "sha256-c6ZM5dyM2Vt1ozDBUT5G4JjUD87tP+pRbAn2WV6t6Ik=";
   };
 
   build-system = [
@@ -26,11 +23,11 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "lupa" ];
 
-  meta = with lib; {
+  meta = {
     description = "Lua in Python";
     homepage = "https://github.com/scoder/lupa";
-    changelog = "https://github.com/scoder/lupa/blob/lupa-${version}/CHANGES.rst";
-    license = with licenses; [ mit ];
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/scoder/lupa/blob/lupa-${finalAttrs.version}/CHANGES.rst";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

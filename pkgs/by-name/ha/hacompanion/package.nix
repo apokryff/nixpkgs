@@ -5,15 +5,15 @@
   nix-update-script,
 }:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "hacompanion";
-  version = "1.0.21";
+  version = "1.0.26";
 
   src = fetchFromGitHub {
     owner = "tobias-kuendig";
     repo = "hacompanion";
-    rev = "v${version}";
-    hash = "sha256-6fj9Gs/ezISx5Llele5mrTFR0IiQzzm1wWcAywTaFPk=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-gpBu7HsohL8/Rfy3uWtYF7llX59nJXDDR//YE3MYje8=";
   };
 
   vendorHash = "sha256-y2eSuMCDZTGdCs70zYdA8NKbuPPN5xmnRfMNK+AE/q8=";
@@ -21,11 +21,12 @@ buildGoModule rec {
   passthru.updateScript = nix-update-script { };
 
   meta = {
-    changelog = "https://github.com/tobias-kuendig/hacompanion/releases/tag/v${version}";
+    changelog = "https://github.com/tobias-kuendig/hacompanion/releases/tag/v${finalAttrs.version}";
     description = "Daemon that sends local hardware information to Home Assistant";
     homepage = "https://github.com/tobias-kuendig/hacompanion";
     license = lib.licenses.mit;
     platforms = lib.platforms.linux;
     maintainers = with lib.maintainers; [ ramblurr ];
+    mainProgram = "hacompanion";
   };
-}
+})

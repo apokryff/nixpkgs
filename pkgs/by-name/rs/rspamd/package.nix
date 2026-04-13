@@ -4,7 +4,7 @@
   fetchFromGitHub,
   cmake,
   doctest,
-  fmt_11,
+  fmt,
   perl,
   glib,
   luajit,
@@ -15,6 +15,7 @@
   ragel,
   fasttext,
   icu,
+  hyperscan,
   vectorscan,
   jemalloc,
   blas,
@@ -27,22 +28,28 @@
   # Enabling blas support breaks bayes filter training from dovecot in nixos-mailserver tests
   # https://gitlab.com/simple-nixos-mailserver/nixos-mailserver/-/issues/321
   withBlas ? false,
+  withHyperscan ? false,
   withLuaJIT ? stdenv.hostPlatform.isx86_64,
+  withVectorscan ? true,
   nixosTests,
 }:
 
-stdenv.mkDerivation rec {
+assert withHyperscan -> stdenv.hostPlatform.isx86_64;
+assert (!withHyperscan) || (!withVectorscan);
+
+stdenv.mkDerivation (finalAttrs: {
   pname = "rspamd";
-  version = "3.12.1";
+  version = "3.14.3";
 
   src = fetchFromGitHub {
     owner = "rspamd";
     repo = "rspamd";
-    rev = version;
-    hash = "sha256-bAkT0msUkgGkjAIlF7lnJbimBKW1NSn2zjkCj3ErJ1I=";
+    tag = finalAttrs.version;
+    hash = "sha256-ntWBcwcPZwRRSTUO4a0JUNd6kc49fm+0/x+fqcZIA/o=";
   };
 
-  hardeningEnable = [ "pie" ];
+  patches = [
+  ];
 
   nativeBuildInputs = [
     cmake
@@ -53,7 +60,7 @@ stdenv.mkDerivation rec {
 
   buildInputs = [
     doctest
-    fmt_11
+    fmt
     glib
     openssl
     pcre
@@ -66,14 +73,15 @@ stdenv.mkDerivation rec {
     xxHash
     zstd
     libarchive
-    vectorscan
   ]
   ++ lib.optionals withBlas [
     blas
     lapack
   ]
+  ++ lib.optional withHyperscan hyperscan
   ++ lib.optional withLuaJIT luajit
-  ++ lib.optional (!withLuaJIT) lua;
+  ++ lib.optional (!withLuaJIT) lua
+  ++ lib.optional withVectorscan vectorscan;
 
   cmakeFlags = [
     # pcre2 jit seems to cause crashes: https://github.com/NixOS/nixpkgs/pull/181908
@@ -96,16 +104,15 @@ stdenv.mkDerivation rec {
 
   passthru.tests.rspamd = nixosTests.rspamd;
 
-  meta = with lib; {
+  meta = {
     homepage = "https://rspamd.com";
-    license = licenses.asl20;
+    license = lib.licenses.asl20;
     description = "Advanced spam filtering system";
-    maintainers = with maintainers; [
+    maintainers = with lib.maintainers; [
       avnik
       fpletz
-      globin
       lewo
     ];
-    platforms = with platforms; linux;
+    platforms = with lib.platforms; linux;
   };
-}
+})

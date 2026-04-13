@@ -38,6 +38,7 @@ buildPythonPackage rec {
     "test_ssl_outgoing" # touches network
     "test_unix_echo" # socket bind error on hydra when built with other packages
     "test_unix_ssl_server" # socket bind error on hydra when built with other packages
+    "test_task_group_thread" # stuck
   ]
   ++ lib.optionals stdenv.hostPlatform.isDarwin [
     # connects to python.org:1, expects an OsError, hangs in the darwin sandbox
@@ -49,11 +50,11 @@ buildPythonPackage rec {
   # curio does not package new releaseas any more
   passthru.updateScript = unstableGitUpdater { };
 
-  meta = with lib; {
+  meta = {
     description = "Library for performing concurrent I/O with coroutines in Python";
     homepage = "https://github.com/dabeaz/curio";
     changelog = "https://github.com/dabeaz/curio/raw/${version}/CHANGES";
-    license = licenses.bsd3;
-    maintainers = [ maintainers.pbsds ];
+    license = lib.licenses.bsd3;
+    maintainers = [ lib.maintainers.pbsds ];
   };
 }

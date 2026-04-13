@@ -2,34 +2,45 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
+
+  # build-system
   setuptools,
+
+  # dependencies
   jinja2,
   mlx,
   numpy,
   protobuf,
   pyyaml,
   transformers,
-  sentencepiece,
+
+  # tests
+  aiohttp,
+  lm-eval,
   pytestCheckHook,
+  sentencepiece,
   writableTmpDirAsHomeHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "mlx-lm";
-  version = "0.26.0";
+  version = "0.31.2";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "ml-explore";
     repo = "mlx-lm";
-    tag = "v${version}";
-    hash = "sha256-J69XIqsjQ4sQqhx+EkjKcVXVlQ4A4PGJvICSiCfoSOA=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-Ujt0KMs4dzIlbg7cg72TudAvlwJ4uWEG5Lx7+5j8cOU=";
   };
 
   build-system = [
     setuptools
   ];
 
+  pythonRelaxDeps = [
+    "transformers"
+  ];
   dependencies = [
     jinja2
     mlx
@@ -40,38 +51,44 @@ buildPythonPackage rec {
   ];
 
   nativeCheckInputs = [
-    writableTmpDirAsHomeHook
+    aiohttp
+    lm-eval
     pytestCheckHook
     sentencepiece
+    writableTmpDirAsHomeHook
   ];
 
-  pythonImportsCheck = [
-    "mlx_lm"
-  ];
+  pythonImportsCheck = [ "mlx_lm" ];
 
   disabledTestPaths = [
     # Requires network access to huggingface.co
     "tests/test_datsets.py"
     "tests/test_generate.py"
+    "tests/test_prompt_cache.py::TestPromptCache"
     "tests/test_server.py"
     "tests/test_tokenizers.py"
     "tests/test_utils.py::TestUtils::test_convert"
     "tests/test_utils.py::TestUtils::test_load"
-    "tests/test_utils_load_model.py"
-    "tests/test_prompt_cache.py::TestPromptCache::test_cache_to_quantized"
-    "tests/test_prompt_cache.py::TestPromptCache::test_cache_with_generate"
-    "tests/test_prompt_cache.py::TestPromptCache::test_trim_cache_with_generate"
+
     # RuntimeError: [metal_kernel] No GPU back-end.
+    "tests/test_losses.py"
     "tests/test_models.py::TestModels::test_bitnet"
+
+    # TypeError: 'NoneType' object is not callable
+    "tests/test_models.py::TestModels::test_gated_delta"
+    "tests/test_models.py::TestModels::test_gated_delta_masked"
+  ];
+
+  disabledTests = [
+    # ValueError: [rope] dims must be positive but got 0
+    # Reported upstream: https://github.com/ml-explore/mlx-lm/issues/1089
+    "test_all_models"
   ];
 
   meta = {
     description = "Run LLMs with MLX";
     homepage = "https://github.com/ml-explore/mlx-lm";
+    changelog = "https://github.com/ml-explore/mlx-lm/releases/tag/${finalAttrs.src.tag}";
     license = lib.licenses.mit;
-    platforms = [
-      "aarch64-darwin"
-    ];
-    maintainers = with lib.maintainers; [ ferrine ];
   };
-}
+})

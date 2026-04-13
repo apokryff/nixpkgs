@@ -1,12 +1,12 @@
 {
   lib,
   buildPythonPackage,
-  fetchFromGitea,
-  pythonOlder,
+  fetchFromCodeberg,
   python,
 
   # build-system
   setuptools,
+  setuptools-scm,
 
   # build-time dependencies
   gettext,
@@ -41,22 +41,22 @@
 
 buildPythonPackage rec {
   pname = "django-allauth";
-  version = "65.9.0";
+  version = "65.15.1";
   pyproject = true;
 
-  disabled = pythonOlder "3.8";
-
-  src = fetchFromGitea {
-    domain = "codeberg.org";
+  src = fetchFromCodeberg {
     owner = "allauth";
     repo = "django-allauth";
     tag = version;
-    hash = "sha256-gusA9TnsgSSnWBPwHsNYeESD9nX5DWh4HqMgcsoJRw0=";
+    hash = "sha256-F36Grbyk5jyvEvK+wQtB8rrq9LMSVJCQjdHkRfdKLlM=";
   };
 
   nativeBuildInputs = [ gettext ];
 
-  build-system = [ setuptools ];
+  build-system = [
+    setuptools
+    setuptools-scm
+  ];
 
   dependencies = [
     asgiref
@@ -68,6 +68,11 @@ buildPythonPackage rec {
   '';
 
   optional-dependencies = {
+    headless = [
+      pyjwt
+    ]
+    ++ pyjwt.optional-dependencies.crypto;
+    headless-spec = [ pyyaml ];
     idp-oidc = [
       oauthlib
       pyjwt
@@ -100,7 +105,7 @@ buildPythonPackage rec {
     pytestCheckHook
     pyyaml
   ]
-  ++ lib.flatten (builtins.attrValues optional-dependencies);
+  ++ lib.concatAttrValues optional-dependencies;
 
   disabledTests = [
     # Tests require network access
@@ -111,7 +116,7 @@ buildPythonPackage rec {
 
   meta = {
     description = "Integrated set of Django applications addressing authentication, registration, account management as well as 3rd party (social) account authentication";
-    changelog = "https://codeberg.org/allauth/django-allauth/src/tag/${version}/ChangeLog.rst";
+    changelog = "https://codeberg.org/allauth/django-allauth/src/tag/${src.tag}/ChangeLog.rst";
     downloadPage = "https://codeberg.org/allauth/django-allauth";
     homepage = "https://allauth.org";
     license = lib.licenses.mit;

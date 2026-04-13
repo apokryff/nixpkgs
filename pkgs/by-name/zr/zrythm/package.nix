@@ -178,11 +178,14 @@ stdenv.mkDerivation (finalAttrs: {
     # "-Duser_manual=true" # needs sphinx-intl
   ];
 
-  NIX_LDFLAGS = ''
-    -lfftw3_threads -lfftw3f_threads
-  '';
+  env = {
+    NIX_LDFLAGS = toString [
+      "-lfftw3_threads"
+      "-lfftw3f_threads"
+    ];
 
-  GUILE_AUTO_COMPILE = 0;
+    GUILE_AUTO_COMPILE = 0;
+  };
 
   dontStrip = true;
 
@@ -208,7 +211,6 @@ stdenv.mkDerivation (finalAttrs: {
     maintainers = with lib.maintainers; [
       tshaynik
       magnetophon
-      yuu
       astavie
       PowerUser64
     ];

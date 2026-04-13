@@ -7,14 +7,14 @@
   zlib,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   version = "0.6.4";
   pname = "game-music-emu";
 
   src = fetchFromGitHub {
     owner = "libgme";
     repo = "game-music-emu";
-    tag = version;
+    tag = finalAttrs.version;
     hash = "sha256-qGNWFFUUjv2R5e/nQrriAyDJCARISqNB8e5/1zEJ3fk=";
   };
   nativeBuildInputs = [
@@ -31,11 +31,11 @@ stdenv.mkDerivation rec {
     remove-references-to -t ${stdenv.cc.cc} "$(readlink -f $out/lib/libgme.so)"
   '';
 
-  meta = with lib; {
+  meta = {
     homepage = "https://github.com/libgme/game-music-emu/";
     description = "Collection of video game music file emulators";
-    license = licenses.lgpl21Plus;
-    platforms = platforms.all;
-    maintainers = with maintainers; [ ];
+    license = lib.licenses.lgpl21Plus;
+    platforms = lib.platforms.all;
+    maintainers = [ ];
   };
-}
+})

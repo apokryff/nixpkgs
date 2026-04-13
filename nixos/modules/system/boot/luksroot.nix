@@ -602,7 +602,7 @@ let
             ++ optional (v.header != null) "header=${v.header}"
             ++ optional (v.keyFileOffset != null) "keyfile-offset=${toString v.keyFileOffset}"
             ++ optional (v.keyFileSize != null) "keyfile-size=${toString v.keyFileSize}"
-            ++ optional (v.keyFileTimeout != null) "keyfile-timeout=${builtins.toString v.keyFileTimeout}s"
+            ++ optional (v.keyFileTimeout != null) "keyfile-timeout=${toString v.keyFileTimeout}s"
             ++ optional (v.tryEmptyPassphrase) "try-empty-password=true";
         in
         "${n} ${v.device} ${if v.keyFile == null then "-" else v.keyFile} ${lib.concatStringsSep "," opts}"
@@ -635,7 +635,6 @@ in
       type = types.listOf types.str;
       default = [
         "aes"
-        "aes_generic"
         "blowfish"
         "twofish"
         "serpent"
@@ -647,6 +646,8 @@ in
         "sha512"
         "af_alg"
         "algif_skcipher"
+        "cryptd"
+        "input_leds" # for capslock LED on most keyboards in case decryption requires password
       ];
       description = ''
         A list of cryptographic kernel modules needed to decrypt the root device(s).
@@ -997,7 +998,6 @@ in
                   type = with types; listOf singleLineStr;
                   default = [ ];
                   example = [ "_netdev" ];
-                  visible = false;
                   description = ''
                     Only used with systemd stage 1.
 
@@ -1135,8 +1135,6 @@ in
     boot.initrd.availableKernelModules = [
       "dm_mod"
       "dm_crypt"
-      "cryptd"
-      "input_leds"
     ]
     ++ luks.cryptoModules
     # workaround until https://marc.info/?l=linux-crypto-vger&m=148783562211457&w=4 is merged
@@ -1249,7 +1247,7 @@ in
         devicesWithClevis = filterAttrs (device: _: (hasAttr device clevis.devices)) luks.devices;
       in
       mkIf (clevis.enable && systemd.enable) (
-        (mapAttrs' (
+        mapAttrs' (
           name: _:
           nameValuePair "cryptsetup-clevis-${name}" {
             wantedBy = [ "systemd-cryptsetup@${utils.escapeSystemdPath name}.service" ];
@@ -1281,7 +1279,7 @@ in
               ExecStop = "${config.boot.initrd.systemd.package.util-linux}/bin/umount /clevis-${name}";
             };
           }
-        ) devicesWithClevis)
+        ) devicesWithClevis
       );
 
     environment.systemPackages = [ pkgs.cryptsetup ];

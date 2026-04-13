@@ -14,7 +14,7 @@
 
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "agate";
-  version = "3.3.18";
+  version = "3.3.21";
 
   __darwinAllowLocalNetworking = true;
 
@@ -22,10 +22,10 @@ rustPlatform.buildRustPackage (finalAttrs: {
     owner = "mbrubeck";
     repo = "agate";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-Q4+0haPvhUfIAmexYkxsKObQtounbybQG/36cJImL9A=";
+    hash = "sha256-eOeLbc7jlJ4OHY+Gce7JR4VaBsP+pBG3uiB7wsgtSyk=";
   };
 
-  cargoHash = "sha256-LdnLLCUFa8wpsA5Pi0HtiyLw5dkLLxtAoOnqSUx9HVI=";
+  cargoHash = "sha256-fDgsoI/SkDzHcQHQYJNguy7el7vLqpt5r05YoBR7FzY=";
 
   nativeBuildInputs = [ pkg-config ];
   buildInputs = [ openssl ];

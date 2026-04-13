@@ -5,6 +5,7 @@
   pythonAtLeast,
   pythonOlder,
   fetchPypi,
+  fetchpatch,
   python,
 
   # build-system
@@ -33,7 +34,7 @@
 
   # tests
   cython-test-exception-raiser,
-  git,
+  gitMinimal,
   glibcLocales,
   pyhamcrest,
   hypothesis,
@@ -55,26 +56,39 @@
 
 buildPythonPackage rec {
   pname = "twisted";
-  version = "24.11.0";
-  format = "pyproject";
-
-  disabled = pythonOlder "3.6";
+  version = "25.5.0";
+  pyproject = true;
 
   src = fetchPypi {
     inherit pname version;
     extension = "tar.gz";
-    hash = "sha256-aV0FVtXsV53MRk0oVrY0iA7RMZ9FsQ0ZBD8rV+sBFbU=";
+    hash = "sha256-HesnI1jLa+Hj6PxvnIs2946w+nwiM9Lb4R7G/uBOoxY=";
   };
+
+  patches = [
+    (fetchpatch {
+      # https://github.com/twisted/twisted/pull/12508
+      url = "https://github.com/twisted/twisted/commit/ef6160aa2595adfba0c71da6db65b7a7252f23e9.patch";
+      hash = "sha256-zHkEWT0lvWf86RlkzU5Wx6R5ear04cfpxB7wjgdpw5c=";
+    })
+    # https://github.com/twisted/twisted/pull/12511
+    ./python314-urljoin-compat.patch
+    (fetchpatch {
+      # https://github.com/twisted/twisted/pull/12551
+      url = "https://github.com/twisted/twisted/commit/b1173fa307a9752eedd63890113eb610c3cca4a0.patch";
+      hash = "sha256-DWEygdo1b8uQOeFLy0/zcRNuuKJdSsF7cQM7RH04Puw=";
+    })
+  ];
 
   __darwinAllowLocalNetworking = true;
 
-  nativeBuildInputs = [
+  build-system = [
     hatchling
     hatch-fancy-pypi-readme
     incremental
   ];
 
-  propagatedBuildInputs = [
+  dependencies = [
     attrs
     automat
     constantly
@@ -172,6 +186,12 @@ buildPythonPackage rec {
           "ProcessTestsBuilder_AsyncioSelectorReactorTests.test_processEnded"
           "ProcessTestsBuilder_SelectReactorTests.test_processEnded"
         ];
+        "src/twisted/internet/test/test_tcp.py" = [
+          # marked as flaky on macOS by upstream
+          # https://github.com/twisted/twisted/blob/twisted-25.5.0/src/twisted/internet/test/test_tcp.py
+          "AbortConnectionTests_AsyncioSelectorReactorTests.test_resumeProducingAbort"
+          "AbortConnectionTests_AsyncioSelectorReactorTests.test_resumeProducingAbortLater"
+        ];
       };
     in
     lib.concatStringsSep "\n" (
@@ -194,7 +214,7 @@ buildPythonPackage rec {
   '';
 
   nativeCheckInputs = [
-    git
+    gitMinimal
     glibcLocales
   ]
   ++ optional-dependencies.test
@@ -258,11 +278,11 @@ buildPythonPackage rec {
     };
   };
 
-  meta = with lib; {
+  meta = {
     changelog = "https://github.com/twisted/twisted/blob/twisted-${version}/NEWS.rst";
     homepage = "https://github.com/twisted/twisted";
     description = "Asynchronous networking framework written in Python";
-    license = licenses.mit;
+    license = lib.licenses.mit;
     maintainers = [ ];
   };
 }

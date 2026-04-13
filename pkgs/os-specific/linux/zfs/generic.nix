@@ -57,7 +57,7 @@ let
 
     let
       inherit (lib)
-        any
+        elem
         optionalString
         optionals
         optional
@@ -66,11 +66,11 @@ let
 
       smartmon = smartmontools.override { inherit enableMail; };
 
-      buildKernel = any (n: n == configFile) [
+      buildKernel = elem configFile [
         "kernel"
         "all"
       ];
-      buildUser = any (n: n == configFile) [
+      buildUser = elem configFile [
         "user"
         "all"
       ];
@@ -152,11 +152,20 @@ let
                ]
              }"
 
+          # substitute path that ZFS will pass on when calling external helper scripts (/etc/zfs/zpool.d/*, zfs_prepare_disk)
+          substituteInPlace ./lib/libzfs/libzfs_util.c \
+            --replace-fail \"PATH=/bin:/sbin:/usr/bin:/usr/sbin\" \
+            \"PATH=/run/wrappers/bin:/run/current-system/sw/bin:/run/current-system/sw/sbin\"
+
           substituteInPlace ./config/zfs-build.m4 \
             --replace-fail "bashcompletiondir=/etc/bash_completion.d" \
               "bashcompletiondir=$out/share/bash-completion/completions"
-
+        ''
+        + lib.optionalString (lib.versionOlder version "2.4.0") ''
           substituteInPlace ./cmd/arc_summary --replace-fail "/sbin/modinfo" "modinfo"
+        ''
+        + lib.optionalString (lib.versionAtLeast version "2.4.0") ''
+          substituteInPlace ./cmd/zarcsummary --replace-fail "/sbin/modinfo" "modinfo"
         ''
         + ''
           echo 'Supported Kernel versions:'
@@ -189,7 +198,7 @@ let
         ++ optional (buildUser && enablePython) python3;
 
       # for zdb to get the rpath to libgcc_s, needed for pthread_cancel to work
-      NIX_CFLAGS_LINK = "-lgcc_s";
+      env.NIX_CFLAGS_LINK = "-lgcc_s";
 
       hardeningDisable = [
         "fortify"
@@ -221,10 +230,8 @@ let
           "--with-linux=${kernel.dev}/lib/modules/${kernel.modDirVersion}/source"
           "--with-linux-obj=${kernel.dev}/lib/modules/${kernel.modDirVersion}/build"
         ]
-        ++ kernelModuleMakeFlags
+        ++ map (f: "KERNEL_${f}") kernelModuleMakeFlags
       );
-
-      makeFlags = optionals buildKernel kernelModuleMakeFlags;
 
       enableParallelBuilding = true;
 
@@ -293,7 +300,15 @@ let
           done
         '';
 
-      outputs = [ "out" ] ++ optionals buildUser [ "dev" ];
+      outputs = [
+        "out"
+      ]
+      ++ optionals buildUser [
+        "dev"
+      ]
+      ++ optionals (!buildKernel) [
+        "man"
+      ];
 
       passthru = {
         inherit kernel;
@@ -341,19 +356,19 @@ let
         # `boot.zfs.enabled` property is `readOnly`, excluding platforms where ZFS
         # does not build is the only way to produce a NixOS installer on such
         # platforms.
-        # https://github.com/openzfs/zfs/blob/6723d1110f6daf93be93db74d5ea9f6b64c9bce5/config/always-arch.m4#L12
+        # https://github.com/openzfs/zfs/blob/077269bfeddf2d35eb20f98289ac9d017b4a32ff/lib/libspl/include/sys/isa_defs.h#L267-L270
         platforms =
           with lib.systems.inspect.patterns;
-          map (p: p // isLinux) (
-            [
-              isx86_32
-              isx86_64
-              isPower
-              isAarch64
-              isSparc
-            ]
-            ++ isArmv7
-          );
+          map (p: p // isLinux) [
+            isx86
+            isAarch
+            isPower
+            isS390
+            isSparc
+            isMips
+            isRiscV64
+            isLoongArch64
+          ];
 
         inherit maintainers;
         mainProgram = "zfs";

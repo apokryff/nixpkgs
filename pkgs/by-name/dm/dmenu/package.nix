@@ -3,9 +3,9 @@
   stdenv,
   fetchzip,
   fontconfig,
-  libX11,
-  libXinerama,
-  libXft,
+  libx11,
+  libxinerama,
+  libxft,
   writeText,
   # customization
   config,
@@ -18,18 +18,18 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "dmenu";
-  version = "5.3";
+  version = "5.4";
 
   src = fetchzip {
     url = "https://dl.suckless.org/tools/dmenu-${finalAttrs.version}.tar.gz";
-    hash = "sha256-3lRLa3NIg+7bUSDnef/rVL3XwvWWHTIPQ8mcVaq/SVI=";
+    hash = "sha256-6bFq3Pj3cuZqLR0pkoJyfx3CDWmmSqkDoEVptMfej7g=";
   };
 
   buildInputs = [
     fontconfig
-    libX11
-    libXinerama
-    libXft
+    libx11
+    libxinerama
+    libxft
   ]
   ++ extraLibs;
 
@@ -61,7 +61,6 @@ stdenv.mkDerivation (finalAttrs: {
     license = lib.licenses.mit;
     maintainers = with lib.maintainers; [
       pSub
-      globin
       qusic
       _0david0mp
     ];

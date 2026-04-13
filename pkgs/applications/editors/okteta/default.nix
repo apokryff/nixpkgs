@@ -1,9 +1,10 @@
 {
-  mkDerivation,
   lib,
+  stdenv,
   fetchurl,
   extra-cmake-modules,
   kdoctools,
+  wrapQtAppsHook,
   qtscript,
   kconfig,
   kinit,
@@ -17,19 +18,20 @@
   shared-mime-info,
 }:
 
-mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "okteta";
-  version = "0.26.22";
+  version = "0.26.25";
 
   src = fetchurl {
-    url = "mirror://kde/stable/okteta/${version}/src/${pname}-${version}.tar.xz";
-    sha256 = "sha256-vi7XhMj/PaMeK4V6FxU7Yi7XyWMaOBUenafZPpaP+n0=";
+    url = "mirror://kde/stable/okteta/${finalAttrs.version}/src/${finalAttrs.pname}-${finalAttrs.version}.tar.xz";
+    sha256 = "sha256-K+GJG/SYyzgDDKXbGtAixQJVfBwLj/asP9rIJUpbt2s=";
   };
 
   nativeBuildInputs = [
     qtscript
     extra-cmake-modules
     kdoctools
+    wrapQtAppsHook
   ];
   buildInputs = [ shared-mime-info ];
 
@@ -50,14 +52,14 @@ mkDerivation rec {
     "dev"
   ];
 
-  meta = with lib; {
-    license = licenses.gpl2;
+  meta = {
+    license = lib.licenses.gpl2;
     description = "Hex editor";
     homepage = "https://apps.kde.org/okteta/";
-    maintainers = with maintainers; [
+    maintainers = with lib.maintainers; [
       peterhoeg
       bkchr
     ];
-    platforms = platforms.linux;
+    platforms = lib.platforms.linux;
   };
-}
+})

@@ -12,60 +12,60 @@
   python3,
   libarchive,
   libmsym,
-  msgpack,
-  qttools,
-  wrapQtAppsHook,
+  jkqtplotter,
+  qt6,
 }:
 
 let
   pythonWP = python3.withPackages (
     p: with p; [
-      openbabel-bindings
+      openbabel
       numpy
     ]
   );
-
-  # Pure data repositories
-  moleculesRepo = fetchFromGitHub {
-    owner = "OpenChemistry";
-    repo = "molecules";
-    rev = "1.0.0";
-    sha256 = "guY6osnpv7Oqt+HE1BpIqL10POp+x8GAci2kY0bLmqg=";
-  };
-  crystalsRepo = fetchFromGitHub {
-    owner = "OpenChemistry";
-    repo = "crystals";
-    rev = "1.0.1";
-    sha256 = "sH/WuvLaYu6akOc3ssAKhnxD8KNoDxuafDSozHqJZC4=";
-  };
-  fragmentsRepo = fetchFromGitHub {
-    owner = "OpenChemistry";
-    repo = "fragments";
-    rev = "8dc711a59d016604b3e9b6d59dec178b8e6ccd36";
-    hash = "sha256-Valc5zwlaZ//eDupFouCfWCeID7/4ObU1SDLFJ/mo/g=";
-  };
-
 in
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "avogadrolibs";
-  version = "1.100.0";
+  version = "2.0.0";
 
   src = fetchFromGitHub {
     owner = "OpenChemistry";
-    repo = pname;
-    rev = version;
-    hash = "sha256-zDn5cgMBJYM27mfQHujxhIf4ZTljFxvFrKl7pNa4K9E=";
+    repo = "avogadrolibs";
+    tag = finalAttrs.version;
+    hash = "sha256-Un1TSXFucCFmHq8DoWQS7RaNgtXiD2JcXGueavugU64=";
   };
 
-  postUnpack = ''
-    cp -r ${moleculesRepo} molecules
-    cp -r ${crystalsRepo} crystals
-    cp -r ${fragmentsRepo} fragments
-  '';
+  postUnpack =
+    let
+      # Pure data repositories
+      moleculesRepo = fetchFromGitHub {
+        owner = "OpenChemistry";
+        repo = "molecules";
+        tag = finalAttrs.version;
+        hash = "sha256-hMLf0gYYnQpjSGKcPy4tihNbmpRR7UxnXF/hyhforgI=";
+      };
+      crystalsRepo = fetchFromGitHub {
+        owner = "OpenChemistry";
+        repo = "crystals";
+        tag = finalAttrs.version;
+        hash = "sha256-WhzFldaOt/wJy1kk+ypOkw1OYFT3hqD7j5qGdq9g+IY=";
+      };
+      fragmentsRepo = fetchFromGitHub {
+        owner = "OpenChemistry";
+        repo = "fragments";
+        tag = finalAttrs.version;
+        hash = "sha256-OLLcQX3a9j9rEJtBziEU4fCZB2DiDDzql2mr2KfSp70=";
+      };
+    in
+    ''
+      cp -r ${moleculesRepo} molecules
+      cp -r ${crystalsRepo} crystals
+      cp -r ${fragmentsRepo} fragments
+    '';
 
   nativeBuildInputs = [
     cmake
-    wrapQtAppsHook
+    qt6.wrapQtAppsHook
     pythonWP
   ];
 
@@ -78,24 +78,24 @@ stdenv.mkDerivation rec {
     glew
     libarchive
     libmsym
-    msgpack
-    qttools
+    jkqtplotter
+    qt6.qttools
   ];
 
   # Fix the broken CMake files to use the correct paths
   postInstall = ''
-    substituteInPlace $out/lib/cmake/${pname}/AvogadroLibsConfig.cmake \
+    substituteInPlace $out/lib/cmake/avogadrolibs/AvogadroLibsConfig.cmake \
       --replace "$out/" ""
 
-    substituteInPlace $out/lib/cmake/${pname}/AvogadroLibsTargets.cmake \
+    substituteInPlace $out/lib/cmake/avogadrolibs/AvogadroLibsTargets.cmake \
       --replace "_IMPORT_PREFIX}/$out" "_IMPORT_PREFIX}/"
   '';
 
-  meta = with lib; {
+  meta = {
     description = "Molecule editor and visualizer";
-    maintainers = with maintainers; [ sheepforce ];
+    maintainers = with lib.maintainers; [ sheepforce ];
     homepage = "https://github.com/OpenChemistry/avogadrolibs";
-    platforms = platforms.linux;
-    license = licenses.gpl2Only;
+    platforms = lib.platforms.linux;
+    license = lib.licenses.gpl2Only;
   };
-}
+})

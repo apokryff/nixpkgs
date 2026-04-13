@@ -4,13 +4,18 @@
   fetchFromGitHub,
 
   # build-system
-  poetry-core,
+  hatchling,
 
   # dependencies
   boto3,
+  langchain,
   langchain-core,
   numpy,
   pydantic,
+
+  # optional-dependencies
+  anthropic,
+  langchain-anthropic,
 
   # tests
   langchain-tests,
@@ -22,16 +27,16 @@
   gitUpdater,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "langchain-aws";
-  version = "0.2.30";
+  version = "1.4.3";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "langchain-ai";
     repo = "langchain-aws";
-    tag = "langchain-aws==${version}";
-    hash = "sha256-Q69DAqdlddTaUMxw51dLb+CQt5HOsaumlU8mfkGWZkQ=";
+    tag = "langchain-aws==${finalAttrs.version}";
+    hash = "sha256-Iya2xWuArROGgEPbYDCFqzuVP5UupemyU2wF/mNNLXo=";
   };
 
   postPatch = ''
@@ -39,49 +44,64 @@ buildPythonPackage rec {
       --replace-fail "--snapshot-warn-unused" ""
   '';
 
-  sourceRoot = "${src.name}/libs/aws";
+  sourceRoot = "${finalAttrs.src.name}/libs/aws";
 
-  build-system = [ poetry-core ];
+  build-system = [ hatchling ];
 
   dependencies = [
     boto3
+    langchain
     langchain-core
     numpy
     pydantic
   ];
 
   pythonRelaxDeps = [
-    # Boto @ 1.35 has outstripped the version requirement
+    # Boto3 spec has outstripped the version requirement
     "boto3"
-    # Each component release requests the exact latest core.
-    # That prevents us from updating individual components.
-    "langchain-core"
   ];
 
+  optional-dependencies = {
+    anthropic = [
+      anthropic.optional-dependencies.bedrock
+      langchain-anthropic
+    ];
+  };
+
   nativeCheckInputs = [
+    anthropic
     langchain-tests
     pytest-asyncio
     pytest-cov-stub
     pytestCheckHook
-  ];
+  ]
+  ++ lib.concatAttrValues finalAttrs.passthru.optional-dependencies;
 
   enabledTestPaths = [ "tests/unit_tests" ];
 
+  disabledTests = [
+    # Fails when langchain-core gets ahead of this package
+    "test_serdes"
+  ];
+
   pythonImportsCheck = [ "langchain_aws" ];
 
-  passthru.updateScript = gitUpdater {
-    rev-prefix = "langchain-aws==";
+  passthru = {
+    # python updater script sets the wrong tag
+    skipBulkUpdate = true;
+    updateScript = gitUpdater {
+      rev-prefix = "langchain-aws==";
+    };
   };
 
   meta = {
-    changelog = "https://github.com/langchain-ai/langchain-aws/releases/tag/${src.tag}";
+    changelog = "https://github.com/langchain-ai/langchain-aws/releases/tag/${finalAttrs.src.tag}";
     description = "Build LangChain application on AWS";
     homepage = "https://github.com/langchain-ai/langchain-aws/";
     license = lib.licenses.mit;
     maintainers = with lib.maintainers; [
-      drupol
       natsukium
       sarahec
     ];
   };
-}
+})

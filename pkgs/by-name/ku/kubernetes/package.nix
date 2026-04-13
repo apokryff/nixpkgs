@@ -12,6 +12,7 @@
   nix-update-script,
 
   components ? [
+    "cmd/kubeadm"
     "cmd/kubelet"
     "cmd/kube-apiserver"
     "cmd/kube-controller-manager"
@@ -22,13 +23,13 @@
 
 buildGoModule (finalAttrs: {
   pname = "kubernetes";
-  version = "1.33.3";
+  version = "1.35.3";
 
   src = fetchFromGitHub {
     owner = "kubernetes";
     repo = "kubernetes";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-UZdrfQEEx0RRe4Bb4EAWcjgCCLq4CJL06HIriYuk1Io=";
+    hash = "sha256-woIp7AnW7r3y0rpKO03+0t6ONyNXTS1IYxW40E1O8DA=";
   };
 
   vendorHash = null;
@@ -50,12 +51,7 @@ buildGoModule (finalAttrs: {
 
   patches = [ ./fixup-addonmanager-lib-path.patch ];
 
-  WHAT = lib.concatStringsSep " " (
-    [
-      "cmd/kubeadm"
-    ]
-    ++ components
-  );
+  env.WHAT = toString components;
 
   buildPhase = ''
     runHook preBuild

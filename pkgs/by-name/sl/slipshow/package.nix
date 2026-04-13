@@ -3,18 +3,19 @@
   ocamlPackages,
   fetchFromGitHub,
   versionCheckHook,
+  nixosTests,
   nix-update-script,
 }:
 
 ocamlPackages.buildDunePackage rec {
   pname = "slipshow";
-  version = "0.4.1";
+  version = "0.9.0";
 
   src = fetchFromGitHub {
     owner = "panglesd";
     repo = "slipshow";
     tag = "v${version}";
-    hash = "sha256-VUKh3O2FYsA8gUJQT0LxTV9psp/neYfYEmQS9cgeFW8=";
+    hash = "sha256-6i7zbfk0uBgwoXlg5fLvC+onZMYKBJwUd74FUakt3jc=";
   };
 
   postPatch = ''
@@ -39,17 +40,25 @@ ocamlPackages.buildDunePackage rec {
     lwt
     magic-mime
     ppx_blob
+    ppx_deriving_yojson
     ppx_sexp_value
     sexplib
   ];
 
+  # This check fails with cmdliner ≥ 2.0
+  preCheck = ''
+    rm -f test/compiler/dimension.t/run.t
+  '';
+
   doCheck = true;
 
   nativeCheckInputs = [ versionCheckHook ];
-  versionCheckProgramArg = "--version";
   doInstallCheck = true;
 
-  passthru.updateScript = nix-update-script { };
+  passthru = {
+    tests = { inherit (nixosTests) slipshow; };
+    updateScript = nix-update-script { };
+  };
 
   meta = {
     description = "Engine for displaying slips, the next-gen version of slides";

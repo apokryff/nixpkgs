@@ -29,14 +29,14 @@ let
 
 in
 
-buildRustPackage rec {
+buildRustPackage (finalAttrs: {
   pname = "tectonic";
   version = "0.15.0";
 
   src = fetchFromGitHub {
     owner = "tectonic-typesetting";
     repo = "tectonic";
-    rev = "tectonic@${version}";
+    rev = "tectonic@${finalAttrs.version}";
     sha256 = "sha256-dZnUu0g86WJIIvwMgdmwb6oYqItxoYrGQTFNX7I61Bs=";
   };
 
@@ -47,6 +47,7 @@ buildRustPackage rec {
       url = "https://github.com/tectonic-typesetting/tectonic/commit/fbb145cd079497b8c88197276f92cb89685b4d54.patch";
       hash = "sha256-6FW5MFkOWnqzYX8Eg5DfmLaEhVWKYVZwodE4SGXHKV0=";
     })
+    ./tectonic-0.15-fix-dangerous_implicit_autorefs.patch
   ];
 
   cargoPatches = [
@@ -87,7 +88,7 @@ buildRustPackage rec {
   meta = {
     description = "Modernized, complete, self-contained TeX/LaTeX engine, powered by XeTeX and TeXLive";
     homepage = "https://tectonic-typesetting.github.io/";
-    changelog = "https://github.com/tectonic-typesetting/tectonic/blob/tectonic@${version}/CHANGELOG.md";
+    changelog = "https://github.com/tectonic-typesetting/tectonic/blob/tectonic@${finalAttrs.version}/CHANGELOG.md";
     license = with lib.licenses; [ mit ];
     mainProgram = "tectonic";
     maintainers = with lib.maintainers; [
@@ -96,4 +97,4 @@ buildRustPackage rec {
       bryango
     ];
   };
-}
+})

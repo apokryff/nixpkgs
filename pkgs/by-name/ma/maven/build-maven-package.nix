@@ -2,6 +2,7 @@
   lib,
   stdenv,
   jdk,
+  jre-generate-cacerts,
   maven,
   writers,
 }:
@@ -11,7 +12,9 @@
   sourceRoot ? null,
   buildOffline ? false,
   doCheck ? true,
+  prePatch ? null,
   patches ? [ ],
+  postPatch ? null,
   pname,
   version,
   mvnJdk ? jdk,
@@ -34,48 +37,57 @@ let
 
   fetchedMavenDeps = stdenv.mkDerivation (
     {
-      name = "${pname}-${version}-maven-deps";
-      inherit src sourceRoot patches;
+      pname = "maven-deps-${pname}";
+      inherit
+        src
+        sourceRoot
+        prePatch
+        patches
+        postPatch
+        version
+        ;
 
       nativeBuildInputs = [
         maven
       ]
       ++ args.nativeBuildInputs or [ ];
 
-      JAVA_HOME = mvnJdk;
+      env = mvnFetchExtraArgs.env or { } // {
+        JAVA_HOME = mvnJdk;
+      };
 
       impureEnvVars = lib.fetchers.proxyImpureEnvVars;
 
       buildPhase = ''
         runHook preBuild
 
-        MAVEN_EXTRA_ARGS=""
+        MAVEN_EXTRA_ARGS="-B"
 
         # handle proxy
         if [[ -n "''${HTTP_PROXY-}" ]] || [[ -n "''${HTTPS_PROXY-}" ]] || [[ -n "''${NO_PROXY-}" ]];then
           mvnSettingsFile="$(mktemp -d)/settings.xml"
           ${writeProxySettings} $mvnSettingsFile
-          MAVEN_EXTRA_ARGS="-s=$mvnSettingsFile"
+          MAVEN_EXTRA_ARGS="$MAVEN_EXTRA_ARGS -s=$mvnSettingsFile"
         fi
 
         # handle cacert by populating a trust store on the fly
         if [[ -n "''${NIX_SSL_CERT_FILE-}" ]] && [[ "''${NIX_SSL_CERT_FILE-}" != "/no-cert-file.crt" ]];then
-          keyStoreFile="$(mktemp -d)/keystore"
-          keyStorePwd="$(head -c10 /dev/random | base32)"
-          echo y | ${jdk}/bin/keytool -importcert -file "$NIX_SSL_CERT_FILE" -alias alias -keystore "$keyStoreFile" -storepass "$keyStorePwd"
-          MAVEN_EXTRA_ARGS="$MAVEN_EXTRA_ARGS -Djavax.net.ssl.trustStore=$keyStoreFile -Djavax.net.ssl.trustStorePassword=$keyStorePwd"
+          echo "using ''${NIX_SSL_CERT_FILE-} as trust store"
+          ${jre-generate-cacerts} ${lib.getBin jdk}/bin/keytool $NIX_SSL_CERT_FILE
+
+          MAVEN_EXTRA_ARGS="$MAVEN_EXTRA_ARGS -Djavax.net.ssl.trustStore=cacerts -Djavax.net.ssl.trustStorePassword=changeit"
         fi
       ''
       + lib.optionalString buildOffline ''
         mvn $MAVEN_EXTRA_ARGS de.qaware.maven:go-offline-maven-plugin:1.2.8:resolve-dependencies -Dmaven.repo.local=$out/.m2 ${mvnDepsParameters}
 
-        for artifactId in ${builtins.toString manualMvnArtifacts}
+        for artifactId in ${toString manualMvnArtifacts}
         do
           echo "downloading manual $artifactId"
           mvn $MAVEN_EXTRA_ARGS dependency:get -Dartifact="$artifactId" -Dmaven.repo.local=$out/.m2
         done
 
-        for artifactId in ${builtins.toString manualMvnSources}
+        for artifactId in ${toString manualMvnSources}
         do
           group=$(echo $artifactId | cut -d':' -f1)
           artifact=$(echo $artifactId | cut -d':' -f2)
@@ -109,11 +121,11 @@ let
       outputHashMode = "recursive";
       outputHash = mvnHash;
     }
-    // mvnFetchExtraArgs
+    // (removeAttrs mvnFetchExtraArgs [ "env" ])
   );
 in
 stdenv.mkDerivation (
-  builtins.removeAttrs args [ "mvnFetchExtraArgs" ]
+  removeAttrs args [ "mvnFetchExtraArgs" ]
   // {
     inherit fetchedMavenDeps;
 
@@ -121,7 +133,9 @@ stdenv.mkDerivation (
       maven
     ];
 
-    JAVA_HOME = mvnJdk;
+    env = args.env or { } // {
+      JAVA_HOME = mvnJdk;
+    };
 
     buildPhase = ''
       runHook preBuild

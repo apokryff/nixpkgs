@@ -6,7 +6,6 @@
   pkg-config,
   cmake,
   ninja,
-  git,
   libxml2,
   libxcrypt,
   libedit,
@@ -26,6 +25,10 @@
   buildTests ? true,
   llvmTargetsToBuild ? [ "NATIVE" ], # "NATIVE" resolves into x86 or aarch64 depending on stdenv
   llvmProjectsToBuild ? [
+    # Required for building triton>=3.5.0
+    # https://github.com/triton-lang/triton/blob/c3c476f357f1e9768ea4e45aa5c17528449ab9ef/third_party/amd/CMakeLists.txt#L6
+    "lld"
+
     "llvm"
     "mlir"
   ],
@@ -45,7 +48,7 @@ let
     "AMDGPU"
     "NVPTX"
   ]
-  ++ builtins.map inferNativeTarget llvmTargetsToBuild;
+  ++ map inferNativeTarget llvmTargetsToBuild;
 
   # This LLVM version can't seem to find pygments/pyyaml,
   # but a later update will likely fix this (triton-2.1.0)
@@ -65,7 +68,7 @@ let
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "triton-llvm";
-  version = "21.0.0-git"; # See https://github.com/llvm/llvm-project/blob/main/cmake/Modules/LLVMVersion.cmake
+  version = "22.0.0-unstable-2025-09-26"; # See https://github.com/llvm/llvm-project/blob/main/cmake/Modules/LLVMVersion.cmake
 
   outputs = [
     "out"
@@ -81,15 +84,14 @@ stdenv.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "llvm";
     repo = "llvm-project";
-    rev = "a66376b0dc3b2ea8a84fda26faca287980986f78";
-    hash = "sha256-7xUPozRerxt38UeJxA8kYYxOQ4+WzDREndD2+K0BYkU=";
+    rev = "f6ded0be897e2878612dd903f7e8bb85448269e5";
+    hash = "sha256-T76zHZZ2bp3Ye9GTV+MgbKqMbtmMGElMFsWuCkiWqrM=";
   };
 
   nativeBuildInputs = [
     pkg-config
     cmake
     ninja
-    git
     python
   ]
   ++ lib.optionals (buildDocs || buildMan) [
@@ -126,6 +128,9 @@ stdenv.mkDerivation (finalAttrs: {
     (lib.cmakeBool "LLVM_INCLUDE_DOCS" (buildDocs || buildMan))
     (lib.cmakeBool "MLIR_INCLUDE_DOCS" (buildDocs || buildMan))
     (lib.cmakeBool "LLVM_BUILD_DOCS" (buildDocs || buildMan))
+    # It's tempting to set BUILD_SHARED_LIBS, which saves far more space
+    # but currently segfaults in keras's test suite. More work needed.
+    (lib.cmakeBool "LLVM_TOOL_LLVM_DRIVER_BUILD" true) # Save space by using busybox style tool binary
     # Way too slow, only uses one core
     # (lib.cmakeBool "LLVM_ENABLE_DOXYGEN" (buildDocs || buildMan))
     (lib.cmakeBool "LLVM_ENABLE_SPHINX" (buildDocs || buildMan))
@@ -197,6 +202,12 @@ stdenv.mkDerivation (finalAttrs: {
     # Not sure why this fails
     + lib.optionalString stdenv.hostPlatform.isAarch64 ''
       rm llvm/test/tools/llvm-exegesis/AArch64/latency-by-opcode-name.s
+    ''
+    # The second llvm-install-name-tool invocation fails with
+    # "is not a Mach-O file" on aarch64-linux, even on a fresh copy of
+    # the original yaml2obj output. Root cause unknown.
+    + lib.optionalString stdenv.hostPlatform.isAarch64 ''
+      rm llvm/test/tools/llvm-objcopy/MachO/install-name-tool-change.test
     '';
 
   postInstall = ''
@@ -220,7 +231,6 @@ stdenv.mkDerivation (finalAttrs: {
     license = with lib.licenses; [ ncsa ];
     maintainers = with lib.maintainers; [
       SomeoneSerge
-      Madouura
     ];
     platforms = with lib.platforms; aarch64 ++ x86;
   };

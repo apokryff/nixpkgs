@@ -2,7 +2,6 @@
   lib,
   fetchFromGitHub,
   python3Packages,
-  cmake,
   anki,
 }:
 
@@ -11,8 +10,6 @@ python3Packages.buildPythonApplication {
   version = "0-unstable-2023-11-08";
 
   pyproject = true;
-
-  disabled = python3Packages.pythonOlder "3.9";
 
   src = fetchFromGitHub {
     owner = "langfield";
@@ -27,14 +24,15 @@ python3Packages.buildPythonApplication {
     ./update-to-newer-anki-versions.patch
   ];
 
-  nativeBuildInputs = [ cmake ];
+  build-system = with python3Packages; [
+    setuptools
+  ];
 
-  propagatedBuildInputs = [
+  dependencies = [
     anki
   ]
   ++ (with python3Packages; [
     beartype
-    click
     colorama
     git-filter-repo
     gitpython
@@ -60,13 +58,10 @@ python3Packages.buildPythonApplication {
 
   dontCheckRuntimeDeps = true;
 
-  # CMake needs to be run by pyproject rather than by its hook
-  dontConfigure = true;
-
-  meta = with lib; {
+  meta = {
     description = "Version control for Anki collections";
     homepage = "https://github.com/langfield/ki";
-    license = licenses.agpl3Only;
-    maintainers = with maintainers; [ eljamm ];
+    license = lib.licenses.agpl3Only;
+    maintainers = with lib.maintainers; [ eljamm ];
   };
 }

@@ -13,7 +13,6 @@
   python-mistralclient,
   python-openstackclient,
   python-swiftclient,
-  pythonOlder,
   requests-mock,
   requests,
   setuptools,
@@ -25,16 +24,14 @@
 
 buildPythonPackage rec {
   pname = "python-troveclient";
-  version = "8.8.0";
+  version = "8.10.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.9";
 
   src = fetchFromGitHub {
     owner = "openstack";
     repo = "python-troveclient";
     tag = version;
-    hash = "sha256-WBMXSZhkrKlEkVpy56zdBRzspUjUsj0dQ4OR250Fo+s=";
+    hash = "sha256-ayNRhT337eG6NJM2ugAqiH6st+2s4gySIeNQ4jJb8nU=";
   };
 
   env.PBR_VERSION = version;

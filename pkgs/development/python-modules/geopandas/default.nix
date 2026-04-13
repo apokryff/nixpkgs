@@ -1,12 +1,11 @@
 {
   lib,
-  stdenv,
   buildPythonPackage,
   fetchFromGitHub,
   fetchpatch,
   pytestCheckHook,
-  pythonOlder,
   setuptools,
+  writableTmpDirAsHomeHook,
 
   packaging,
   pandas,
@@ -27,28 +26,17 @@
   xyzservices,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "geopandas";
-  version = "1.0.1";
+  version = "1.1.3";
   pyproject = true;
-
-  disabled = pythonOlder "3.9";
 
   src = fetchFromGitHub {
     owner = "geopandas";
     repo = "geopandas";
-    tag = "v${version}";
-    hash = "sha256-SZizjwkx8dsnaobDYpeQm9jeXZ4PlzYyjIScnQrH63Q=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-66FbHNewpSEVZ9RwngK7E4bcELa9Z2OQ9xVP9+fgeHQ=";
   };
-
-  patches = [
-    (fetchpatch {
-      # Remove geom_almost_equals, because it broke with shapely 2.1.0 and is not being updated
-      url = "https://github.com/geopandas/geopandas/commit/0e1f871a02e9612206dcadd6817284131026f61c.patch";
-      excludes = [ "CHANGELOG.md" ];
-      hash = "sha256-n9AmmbjjNwV66lxDQV2hfkVVfxRgMfEGfHZT6bql684=";
-    })
-  ];
 
   build-system = [ setuptools ];
 
@@ -83,12 +71,9 @@ buildPythonPackage rec {
   nativeCheckInputs = [
     pytestCheckHook
     rtree
+    writableTmpDirAsHomeHook
   ]
-  ++ optional-dependencies.all;
-
-  preCheck = ''
-    export HOME=$(mktemp -d);
-  '';
+  ++ finalAttrs.passthru.optional-dependencies.all;
 
   disabledTests = [
     # Requires network access
@@ -99,11 +84,11 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "geopandas" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python geospatial data analysis framework";
     homepage = "https://geopandas.org";
-    changelog = "https://github.com/geopandas/geopandas/blob/v${version}/CHANGELOG.md";
-    license = licenses.bsd3;
-    teams = [ teams.geospatial ];
+    changelog = "https://github.com/geopandas/geopandas/blob/${finalAttrs.src.tag}/CHANGELOG.md";
+    license = lib.licenses.bsd3;
+    teams = [ lib.teams.geospatial ];
   };
-}
+})

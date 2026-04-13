@@ -53,7 +53,7 @@ in
       description = ''
         Configuration for peertube-runner.
 
-        See available configuration options at https://docs.joinpeertube.org/maintain/tools#configuration.
+        See available configuration options at <https://docs.joinpeertube.org/maintain/tools#configuration>.
       '';
     };
     instancesToRegister = lib.mkOption {
@@ -72,7 +72,7 @@ in
               description = ''
                 Path to a file containing a registration token for the PeerTube instance.
 
-                See how to generate registration tokens at https://docs.joinpeertube.org/admin/remote-runners#manage-remote-runners.
+                See how to generate registration tokens at <https://docs.joinpeertube.org/admin/remote-runners#manage-remote-runners>.
               '';
             };
             runnerName = lib.mkOption {
@@ -188,7 +188,7 @@ in
                 --runner-name ${lib.escapeShellArg instance.runnerName} \
                 ${lib.optionalString (
                   instance.runnerDescription != null
-                ) ''--runner-description ${lib.escapeShellArg instance.runnerDescription}''}
+                ) "--runner-description ${lib.escapeShellArg instance.runnerDescription}"}
 
               # Kill the server
               kill $!
@@ -252,5 +252,5 @@ in
     };
   };
 
-  meta.maintainers = lib.teams.ngi.members;
+  meta.teams = [ lib.teams.ngi ];
 }

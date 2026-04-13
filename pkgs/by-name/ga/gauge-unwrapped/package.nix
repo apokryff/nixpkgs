@@ -4,9 +4,9 @@
   fetchFromGitHub,
 }:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "gauge";
-  version = "1.6.20";
+  version = "1.6.29";
 
   patches = [
     # adds a check which adds an error message when trying to
@@ -17,25 +17,25 @@ buildGoModule rec {
   src = fetchFromGitHub {
     owner = "getgauge";
     repo = "gauge";
-    tag = "v${version}";
-    hash = "sha256-Ynyi2ph1L9SfxDwgXqw55nieP5o9LyHxKw4HYQEhXEo=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-mZmIxss0W5eufz7EzchjVxdXpM/npbIBWls5C3KYVbY=";
   };
 
-  vendorHash = "sha256-vv77sD+H2PI06iaJWNGoT4Oe53Shc7QxlSL1nX4i4+Y=";
+  vendorHash = "sha256-nZPRjCzYSdtx6Q4VGdTunfK9+4X14l3gXwMLJc855JY=";
 
   excludedPackages = [
     "build"
     "man"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Light weight cross-platform test automation";
     mainProgram = "gauge";
     homepage = "https://gauge.org";
-    license = licenses.asl20;
-    maintainers = with maintainers; [
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [
       vdemeester
       marie
     ];
   };
-}
+})

@@ -7,13 +7,13 @@
   openssl,
   openjdk11,
   python3,
-  unixODBC,
+  unixodbc,
   withJdbc ? false,
   withOdbc ? false,
+  versionCheckHook,
 }:
 
 let
-  enableFeature = yes: if yes then "ON" else "OFF";
   versions = lib.importJSON ./versions.json;
 in
 stdenv.mkDerivation (finalAttrs: {
@@ -44,20 +44,20 @@ stdenv.mkDerivation (finalAttrs: {
     openssl
   ]
   ++ lib.optionals withJdbc [ openjdk11 ]
-  ++ lib.optionals withOdbc [ unixODBC ];
+  ++ lib.optionals withOdbc [ unixodbc ];
 
   cmakeFlags = [
-    "-DDUCKDB_EXTENSION_CONFIGS=${finalAttrs.src}/.github/config/in_tree_extensions.cmake"
-    "-DBUILD_ODBC_DRIVER=${enableFeature withOdbc}"
-    "-DJDBC_DRIVER=${enableFeature withJdbc}"
-    "-DOVERRIDE_GIT_DESCRIBE=v${finalAttrs.version}-0-g${finalAttrs.rev}"
-  ]
-  ++ lib.optionals finalAttrs.doInstallCheck [
+    (lib.cmakeFeature "DUCKDB_EXTENSION_CONFIGS" "${finalAttrs.src}/.github/config/in_tree_extensions.cmake")
+    (lib.cmakeBool "BUILD_ODBC_DRIVER" withOdbc)
+    (lib.cmakeBool "JDBC_DRIVER" withJdbc)
+    (lib.cmakeFeature "OVERRIDE_GIT_DESCRIBE" "v${finalAttrs.version}-0-g${finalAttrs.rev}")
     # development settings
-    "-DBUILD_UNITTESTS=ON"
+    (lib.cmakeBool "BUILD_UNITTESTS" finalAttrs.doInstallCheck)
   ];
 
   doInstallCheck = true;
+
+  nativeInstallCheckInputs = [ versionCheckHook ];
 
   installCheckPhase =
     let
@@ -122,6 +122,24 @@ stdenv.mkDerivation (finalAttrs: {
           "test/sql/function/list/aggregates/skewness.test"
           "test/sql/aggregate/aggregates/histogram_table_function.test"
         ]
+        ++ lib.optionals stdenv.hostPlatform.isDarwin [
+          # SIGTRAP during iejoin tests on aarch64-darwin (with and without sandbox)
+          # iejoin implementation rewritten in 1.5.x with new parallel task scheduling
+          "test/sql/join/iejoin/iejoin_issue_6861.test"
+          "test/sql/join/iejoin/iejoin_issue_7278.test"
+          "test/sql/join/iejoin/iejoin_projection_maps.test"
+          "test/sql/join/iejoin/merge_join_switch.test"
+          "test/sql/join/iejoin/predicate_expressions.test"
+          "test/sql/join/iejoin/test_countzeros.test"
+          "test/sql/join/iejoin/test_ieantijoin.test"
+          "test/sql/join/iejoin/test_iejoin.test"
+          "test/sql/join/iejoin/test_iejoin_east_west.test"
+          "test/sql/join/iejoin/test_iejoin_events.test"
+          "test/sql/join/iejoin/test_iejoin_null_keys.test"
+          "test/sql/join/iejoin/test_iejoin_overlaps.test"
+          "test/sql/join/iejoin/test_iejoin_predicate.test"
+          "test/sql/join/iejoin/test_iesemijoin.test"
+        ]
       );
       LD_LIBRARY_PATH = lib.optionalString stdenv.hostPlatform.isDarwin "DY" + "LD_LIBRARY_PATH";
     in
@@ -135,6 +153,7 @@ stdenv.mkDerivation (finalAttrs: {
     '';
 
   passthru.updateScript = ./update.sh;
+  passthru.pythonHash = versions.python_hash;
 
   meta = {
     changelog = "https://github.com/duckdb/duckdb/releases/tag/v${finalAttrs.version}";
@@ -143,6 +162,7 @@ stdenv.mkDerivation (finalAttrs: {
     license = lib.licenses.mit;
     mainProgram = "duckdb";
     maintainers = with lib.maintainers; [
+      cameronraysmith
       costrouc
       cpcloud
     ];

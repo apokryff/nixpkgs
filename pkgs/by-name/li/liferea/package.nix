@@ -17,7 +17,7 @@
   libnotify,
   gtk3,
   gsettings-desktop-schemas,
-  libpeas,
+  libpeas2,
   libsecret,
   gobject-introspection,
   glib-networking,
@@ -26,11 +26,11 @@
 
 stdenv.mkDerivation rec {
   pname = "liferea";
-  version = "1.16-RC2";
+  version = "1.16.7";
 
   src = fetchurl {
     url = "https://github.com/lwindolf/${pname}/releases/download/v${version}/${pname}-${version}.tar.bz2";
-    hash = "sha256-yOfePUcr6NauNQjkWnSxPD5tJSqx5OSTFGUxOz3hDhg=";
+    hash = "sha256-571mxEqnPVvuJ/r8hU4brtJhiVPxbBOPXhWL3XWmUTI=";
   };
 
   nativeBuildInputs = [
@@ -49,7 +49,7 @@ stdenv.mkDerivation rec {
     libxslt
     sqlite
     libsoup_3
-    libpeas
+    libpeas2
     gsettings-desktop-schemas
     json-glib
     libsecret
@@ -68,6 +68,9 @@ stdenv.mkDerivation rec {
   postFixup = ''
     buildPythonPath ${python3Packages.pycairo}
     patchPythonScript $out/lib/liferea/plugins/trayicon.py
+
+    buildPythonPath ${python3Packages.requests}
+    patchPythonScript $out/lib/liferea/plugins/download-manager.py
   '';
 
   passthru.updateScript = gitUpdater {
@@ -75,15 +78,15 @@ stdenv.mkDerivation rec {
     rev-prefix = "v";
   };
 
-  meta = with lib; {
+  meta = {
     description = "GTK-based news feed aggregator";
     homepage = "http://lzone.de/liferea/";
-    license = licenses.gpl2Plus;
-    maintainers = with maintainers; [
+    license = lib.licenses.gpl2Plus;
+    maintainers = with lib.maintainers; [
       romildo
       yayayayaka
     ];
-    platforms = platforms.linux;
+    platforms = lib.platforms.linux;
 
     longDescription = ''
       Liferea (Linux Feed Reader) is an RSS/RDF feed reader.

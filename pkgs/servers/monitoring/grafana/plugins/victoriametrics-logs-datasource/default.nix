@@ -2,12 +2,15 @@
 
 grafanaPlugin {
   pname = "victoriametrics-logs-datasource";
-  version = "0.19.2";
-  zipHash = "sha256-+mGW9A39GioPKW5j2vT2aNKrBc/A6qsaeIjo4EUrXs4=";
+  version = "0.26.3";
+  zipHash = "sha256-6aRSuGZCfw3iPkZrGvgij7sTRCZ/kp+2s1T4MCecdIo=";
   meta = {
     description = "Grafana datasource for VictoriaLogs";
     license = lib.licenses.asl20;
-    maintainers = with lib.maintainers; [ samw ];
+    maintainers = with lib.maintainers; [
+      samw
+      shawn8901
+    ];
     platforms = lib.platforms.unix;
   };
 }

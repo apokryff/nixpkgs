@@ -8,7 +8,20 @@
   pkg-config,
   ninja,
   cmake,
-  xorg,
+  libxxf86vm,
+  libxtst,
+  libxres,
+  libxrender,
+  libxmu,
+  libxi,
+  libxext,
+  libxdamage,
+  libxcursor,
+  libxcomposite,
+  libx11,
+  xwininfo,
+  xprop,
+  libxcb,
   libdrm,
   libei,
   vulkan-loader,
@@ -29,7 +42,7 @@
   glslang,
   hwdata,
   stb,
-  wlroots,
+  wlroots_0_18,
   libdecor,
   lcms,
   lib,
@@ -37,7 +50,7 @@
   makeBinaryWrapper,
   nix-update-script,
   enableExecutable ? true,
-  enableWsi ? true,
+  enableWsi ? false,
 }:
 let
   frogShaders = fetchFromGitHub {
@@ -49,14 +62,14 @@ let
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "gamescope";
-  version = "3.16.14.2";
+  version = "3.16.23";
 
   src = fetchFromGitHub {
     owner = "ValveSoftware";
     repo = "gamescope";
     tag = finalAttrs.version;
     fetchSubmodules = true;
-    hash = "sha256-l8SK8LQmFK0KeWxag7CX2lnME+HOvGpn4s3FqUNsK1Q=";
+    hash = "sha256-q9AZTe6fBgJBt5/c3x8PVrnDF+MtRmQ1OWZq9ZsSe/M=";
   };
 
   patches = [
@@ -128,7 +141,8 @@ stdenv.mkDerivation (finalAttrs: {
   buildInputs = [
     pipewire
     hwdata
-    xorg.libX11
+    libx11
+    libxcb
     wayland
     wayland-protocols
     vulkan-loader
@@ -137,19 +151,19 @@ stdenv.mkDerivation (finalAttrs: {
     vulkan-headers
   ]
   ++ lib.optionals enableExecutable (
-    wlroots.buildInputs
+    wlroots_0_18.buildInputs
     ++ [
       # gamescope uses a custom wlroots branch
-      xorg.libXcomposite
-      xorg.libXcursor
-      xorg.libXdamage
-      xorg.libXext
-      xorg.libXi
-      xorg.libXmu
-      xorg.libXrender
-      xorg.libXres
-      xorg.libXtst
-      xorg.libXxf86vm
+      libxcomposite
+      libxcursor
+      libxdamage
+      libxext
+      libxi
+      libxmu
+      libxrender
+      libxres
+      libxtst
+      libxxf86vm
       libavif
       libdrm
       libei
@@ -173,7 +187,6 @@ stdenv.mkDerivation (finalAttrs: {
     # --debug-layers flag expects these in the path
     wrapProgram "$out/bin/gamescope" \
       --prefix PATH : ${
-        with xorg;
         lib.makeBinPath [
           xprop
           xwininfo

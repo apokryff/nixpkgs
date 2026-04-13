@@ -3,23 +3,27 @@
   lib,
   fetchurl,
   unzip,
+  installShellFiles,
   nix-update-script,
   versionCheckHook,
 }:
 stdenvNoCC.mkDerivation rec {
   pname = "swiftlint";
-  version = "0.59.0";
+  version = "0.62.1";
 
   src = fetchurl {
     url = "https://github.com/realm/SwiftLint/releases/download/${version}/portable_swiftlint.zip";
-    hash = "sha256-rsGt9hy2EklZEA7eQ/Tp9eztVLVlVn9LMPTeZz9fQYA=";
+    hash = "sha256-VB20vZT4z4+6q3YvWX5/DkkBan+MpccNhrQ3CnzSNkE=";
   };
 
   dontPatch = true;
   dontConfigure = true;
   dontBuild = true;
 
-  nativeBuildInputs = [ unzip ];
+  nativeBuildInputs = [
+    unzip
+    installShellFiles
+  ];
 
   sourceRoot = ".";
 
@@ -27,6 +31,13 @@ stdenvNoCC.mkDerivation rec {
     runHook preInstall
     install -Dm755 swiftlint $out/bin/swiftlint
     runHook postInstall
+  '';
+
+  postInstall = lib.optionalString (stdenvNoCC.buildPlatform.canExecute stdenvNoCC.hostPlatform) ''
+    installShellCompletion --cmd swiftlint \
+      --bash <($out/bin/swiftlint --generate-completion-script bash) \
+      --fish <($out/bin/swiftlint --generate-completion-script fish) \
+      --zsh <($out/bin/swiftlint --generate-completion-script zsh)
   '';
 
   doInstallCheck = true;

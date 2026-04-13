@@ -2,39 +2,27 @@
   lib,
   buildNpmPackage,
   fetchFromGitHub,
-  giflib,
-  python3,
-  pkg-config,
-  pixman,
-  cairo,
-  pango,
-  stdenv,
 }:
 
-buildNpmPackage rec {
+buildNpmPackage (finalAttrs: {
   pname = "cinny-unwrapped";
-  version = "4.8.1";
+  # Remember to update cinny-desktop when bumping this version.
+  version = "4.11.1";
 
+  # nixpkgs-update: no auto update
   src = fetchFromGitHub {
     owner = "cinnyapp";
     repo = "cinny";
-    tag = "v${version}";
-    hash = "sha256-1F49KHAfCtvcqMeRYI8r6Ke7oz+EQqOfkgdgn5E1DU4=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-dwI3zNey/ukF3t2fhH/ePf4o4iBDwZyLWMYebPgXmWU=";
   };
 
-  npmDepsHash = "sha256-Tx+08NrbFolI7agC6AtNvkOgCJWJa4fsY0CFC02h4r0=";
+  npmDepsHash = "sha256-27WFjb08p09aJRi0S2PvYq3bivEuG5+z2QhFahTSj4Q=";
 
-  nativeBuildInputs = [
-    python3
-    pkg-config
+  # Skip rebuilding native modules since they're not needed for the web app
+  npmRebuildFlags = [
+    "--ignore-scripts"
   ];
-
-  buildInputs = [
-    pixman
-    cairo
-    pango
-  ]
-  ++ lib.optionals stdenv.hostPlatform.isDarwin [ giflib ];
 
   installPhase = ''
     runHook preInstall
@@ -47,8 +35,11 @@ buildNpmPackage rec {
   meta = {
     description = "Yet another Matrix client for the web";
     homepage = "https://cinny.in/";
-    maintainers = with lib.maintainers; [ abbe ];
+    maintainers = with lib.maintainers; [
+      abbe
+      rebmit
+    ];
     license = lib.licenses.agpl3Only;
     platforms = lib.platforms.all;
   };
-}
+})

@@ -8,7 +8,6 @@
   makeWrapper,
   replaceVars,
   sbcl,
-  bash,
   which,
   perl,
   hostname,
@@ -35,13 +34,13 @@ let
 in
 stdenv.mkDerivation rec {
   pname = "acl2";
-  version = "8.5";
+  version = "8.6";
 
   src = fetchFromGitHub {
     owner = "acl2-devel";
     repo = "acl2-devel";
     rev = version;
-    sha256 = "12cv5ms1j3vfrq066km020nwxb6x2dzh12g8nz6xxyxysn44wzzi";
+    sha256 = "sha256-fF9bbEacwCHP1m/eVgFrTD4Ne7L2mzq0K9vJ1tiy9go=";
   };
 
   # You can swap this out with any other IPASIR implementation at
@@ -52,15 +51,16 @@ stdenv.mkDerivation rec {
   libipasir = callPackage ./libipasirglucose4 { };
 
   patches = [
-    (replaceVars ./0001-Fix-some-paths-for-Nix-build.patch {
+    # The upstream fix for the input-files macro regression
+    (fetchpatch {
+      url = "https://github.com/acl2/acl2/commit/be39e7835f1c68008c17188d2f65eeaef61632fa.patch";
+      hash = "sha256-pZ/r0vlyJz7ymYfrVtHDxsLdw0M/MJStBH42ZLO7Fs4=";
+    })
+
+    (replaceVars ./0001-path-changes-for-nix.patch {
       libipasir = "${libipasir}/lib/${libipasir.libname}";
       libssl = "${lib.getLib openssl}/lib/libssl${stdenv.hostPlatform.extensions.sharedLibrary}";
       libcrypto = "${lib.getLib openssl}/lib/libcrypto${stdenv.hostPlatform.extensions.sharedLibrary}";
-    })
-    (fetchpatch {
-      name = "fix-fastnumio-on-newer-sbcl.patch";
-      url = "https://github.com/acl2-devel/acl2-devel/commit/84f5a6cd4a1aaf204e8bae3eab4c21e8c061f469.patch";
-      hash = "sha256-VA9giXZMb/Ob8ablxfbBAaZ2+2PGcv7WtooXwKDgT08=";
     })
   ];
 
@@ -153,7 +153,7 @@ stdenv.mkDerivation rec {
     rm -rf $out/share/${pname}/books
   '';
 
-  meta = with lib; {
+  meta = {
     description = "Interpreter and prover for a Lisp dialect";
     mainProgram = "acl2";
     longDescription = ''
@@ -184,12 +184,12 @@ stdenv.mkDerivation rec {
     homepage = "https://www.cs.utexas.edu/users/moore/acl2/";
     downloadPage = "https://github.com/acl2-devel/acl2-devel/releases";
     license =
-      with licenses;
+      with lib.licenses;
       [
         # ACL2 itself is bsd3
         bsd3
       ]
-      ++ optionals certifyBooks [
+      ++ lib.optionals certifyBooks [
         # The community books are mostly bsd3 or mit but with a few
         # other things thrown in.
         mit
@@ -199,11 +199,10 @@ stdenv.mkDerivation rec {
         publicDomain
         unfreeRedistributable
       ];
-    maintainers = with maintainers; [
+    maintainers = with lib.maintainers; [
       kini
       raskin
     ];
-    platforms = platforms.all;
-    broken = stdenv.hostPlatform.isDarwin;
+    platforms = lib.platforms.all;
   };
 }

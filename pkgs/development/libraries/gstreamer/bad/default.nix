@@ -29,7 +29,7 @@
   liblc3,
   libass,
   lrdf,
-  ladspaH,
+  ladspa-header,
   lcms2,
   libnice,
   webrtcAudioProcessingSupport ? lib.meta.availableOn stdenv.hostPlatform webrtc-audio-processing_1,
@@ -115,7 +115,7 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "gst-plugins-bad";
-  version = "1.26.0";
+  version = "1.26.5";
 
   outputs = [
     "out"
@@ -124,21 +124,13 @@ stdenv.mkDerivation (finalAttrs: {
 
   src = fetchurl {
     url = "https://gstreamer.freedesktop.org/src/gst-plugins-bad/gst-plugins-bad-${finalAttrs.version}.tar.xz";
-    hash = "sha256-+Ch6hMX2Y2ilpQ2l+WmZSgLEfyAiD/4coxVBk+Za8hY=";
+    hash = "sha256-mJDyYvOyqVZNy2KenraX13uT0fcYl+2hqBcLfc/nMpQ=";
   };
 
   patches = [
     # Add fallback paths for nvidia userspace libraries
     (replaceVars ./fix-paths.patch {
       inherit (addDriverRunpath) driverLink;
-    })
-
-    # Fix Requires in gstreamer-analytics-1.0.pc
-    # https://gitlab.freedesktop.org/gstreamer/gstreamer/-/merge_requests/8661
-    (fetchpatch {
-      url = "https://gitlab.freedesktop.org/gstreamer/gstreamer/-/commit/bc93bbf5c87ec994ea136bb40accc09dfa35ae98.patch";
-      stripLen = 2;
-      hash = "sha256-QQDpHe363iPxTuthITRbLUKaAXS2F9s5zfCn/ps14WE=";
     })
   ];
 
@@ -250,7 +242,7 @@ stdenv.mkDerivation (finalAttrs: {
     spandsp
 
     # ladspa plug-in
-    ladspaH
+    ladspa-header
     lrdf # TODO: make build on Darwin
 
     # lv2 plug-in
@@ -330,6 +322,9 @@ stdenv.mkDerivation (finalAttrs: {
     (lib.mesonEnable "doc" enableDocumentation)
     (lib.mesonEnable "directfb" false)
     (lib.mesonEnable "lcevcdecoder" lcevcdecSupport)
+    (lib.mesonEnable "ldac" ldacbtSupport)
+    (lib.mesonEnable "webrtcdsp" webrtcAudioProcessingSupport)
+    (lib.mesonEnable "isac" webrtcAudioProcessingSupport)
   ]
   ++ lib.optionals (!stdenv.hostPlatform.isLinux) [
     "-Ddoc=disabled" # needs gstcuda to be enabled which is Linux-only
@@ -404,6 +399,10 @@ stdenv.mkDerivation (finalAttrs: {
 
   doCheck = false; # fails 20 out of 58 tests, expensive
 
+  preFixup = ''
+    moveToOutput "lib/gstreamer-1.0/pkgconfig" "$dev"
+  '';
+
   passthru = {
     tests = {
       full = gst-plugins-bad.override {
@@ -420,7 +419,7 @@ stdenv.mkDerivation (finalAttrs: {
     updateScript = directoryListingUpdater { };
   };
 
-  meta = with lib; {
+  meta = {
     description = "GStreamer Bad Plugins";
     mainProgram = "gst-transcoder-1.0";
     homepage = "https://gstreamer.freedesktop.org";
@@ -430,8 +429,8 @@ stdenv.mkDerivation (finalAttrs: {
       something - be it a good code review, some documentation, a set of tests,
       a real live maintainer, or some actual wide use.
     '';
-    license = if enableGplPlugins then licenses.gpl2Plus else licenses.lgpl2Plus;
-    platforms = platforms.linux ++ platforms.darwin;
-    maintainers = with maintainers; [ matthewbauer ];
+    license = if enableGplPlugins then lib.licenses.gpl2Plus else lib.licenses.lgpl2Plus;
+    platforms = lib.platforms.linux ++ lib.platforms.darwin;
+    maintainers = [ ];
   };
 })

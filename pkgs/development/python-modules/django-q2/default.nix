@@ -10,29 +10,24 @@
   django-redis,
   fetchFromGitHub,
   hiredis,
-  pkgs,
   poetry-core,
   pytest-django,
   pytestCheckHook,
+  redisTestHook,
   stdenv,
 }:
 
 buildPythonPackage rec {
   pname = "django-q2";
-  version = "1.7.6";
+  version = "1.9.0";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "django-q2";
     repo = "django-q2";
     tag = "v${version}";
-    hash = "sha256-L2IrLKszo2UCpeioAwI8c636KwQgNCEJjHUDY2Ctv4A=";
+    hash = "sha256-xqRm9vv/lD9HLX+ekdPgIGGwr5H7QZBATPx0CCjQAmw=";
   };
-
-  postPatch = ''
-    substituteInPlace django_q/tests/settings.py \
-      --replace-fail "HiredisParser" "_HiredisParser"
-  '';
 
   build-system = [
     poetry-core
@@ -49,30 +44,13 @@ buildPythonPackage rec {
     blessed
     croniter
     django-redis
-    # pyredis refuses to load with hiredis<3.0.0
-    (hiredis.overrideAttrs (
-      new: old: {
-        version = "3.1.0";
-        src = old.src.override {
-          tag = "v${new.version}";
-          hash = "sha256-ID5OJdARd2N2GYEpcYOpxenpZlhWnWr5fAClAgqEgGg=";
-        };
-      }
-    ))
+    hiredis
     pytest-django
     pytestCheckHook
+    redisTestHook
   ];
 
   pythonImportsCheck = [ "django_q" ];
-
-  preCheck = ''
-    ${pkgs.valkey}/bin/redis-server &
-    REDIS_PID=$!
-  '';
-
-  postCheck = ''
-    kill $REDIS_PID
-  '';
 
   env = {
     MONGO_HOST = "127.0.0.1";
@@ -105,7 +83,7 @@ buildPythonPackage rec {
   meta = {
     description = "Multiprocessing distributed task queue for Django based on Django-Q";
     homepage = "https://github.com/django-q2/django-q2";
-    changelog = "https://github.com/django-q2/django-q2/releases/tag/v${version}";
+    changelog = "https://github.com/django-q2/django-q2/releases/tag/${src.tag}";
     license = lib.licenses.mit;
     maintainers = with lib.maintainers; [ SuperSandro2000 ];
   };

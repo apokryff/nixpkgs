@@ -78,7 +78,7 @@ in
       };
       description = ''
         Configuration for docker daemon. The attributes are serialized to JSON used as daemon.conf.
-        See https://docs.docker.com/engine/reference/commandline/dockerd/#daemon-configuration-file
+        See <https://docs.docker.com/engine/reference/commandline/dockerd/#daemon-configuration-file>
       '';
     };
 
@@ -86,7 +86,7 @@ in
       type = types.bool;
       default = false;
       description = ''
-        **Deprecated**, please use hardware.nvidia-container-toolkit.enable instead.
+        **Deprecated**, please use {option}`hardware.nvidia-container-toolkit.enable` instead.
 
         Enable Nvidia GPU support inside docker containers.
       '';

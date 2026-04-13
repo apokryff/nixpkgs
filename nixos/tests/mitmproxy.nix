@@ -9,7 +9,7 @@ let
 in
 {
   name = "mitmproxy";
-  meta.maintainers = [ lib.teams.ngi.members ];
+  meta.maintainers = lib.teams.ngi.members;
 
   nodes.machine =
     { pkgs, ... }:
@@ -71,6 +71,7 @@ in
         [
           counter
           pkgs.mitmproxy
+          pkgs.mitmproxy2swagger
         ];
     };
 
@@ -85,7 +86,7 @@ in
     ''
       def curl(command: str, proxy: bool = False):
           if proxy:
-              command = "curl --proxy 127.0.0.1:8080 --cacert ~/.mitmproxy/mitmproxy-ca-cert.pem " + command
+              command = "curl --proxy 127.0.0.1:8080 --cacert ~/.mitmproxy/mitmproxy-ca.pem " + command
           else:
               command = "curl " + command
           return machine.succeed(command)
@@ -130,5 +131,17 @@ in
       machine.succeed("mitmdump -C /root/replay")
 
       t.assertEqual("2", curl("http://localhost:8000/counter"))
+
+      # create a OpenAPI 3.0 spec from captured flow
+      # https://github.com/alufers/mitmproxy2swagger
+
+      # create a initial spec
+      machine.succeed("mitmproxy2swagger -i /root/replay -f flow -o /root/spec -p http://localhost:8000")
+      # don't ignore any endpoint
+      machine.succeed("sed -i -e 's/- ignore:/- /' /root/spec")
+      # generate the actual spec
+      machine.succeed("mitmproxy2swagger -i /root/replay -f flow -o /root/spec -p http://localhost:8000")
+      # check for endpoint /counter
+      machine.succeed("grep '/counter:' /root/spec")
     '';
 }

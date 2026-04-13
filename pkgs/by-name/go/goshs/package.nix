@@ -2,29 +2,30 @@
   buildGoModule,
   fetchFromGitHub,
   stdenv,
-  versionCheckHook,
   lib,
+  testers,
+
+  # passthru
+  goshs,
 }:
 
 buildGoModule (finalAttrs: {
   pname = "goshs";
-  version = "1.1.0";
+  version = "2.0.0-beta.5";
 
   src = fetchFromGitHub {
     owner = "patrickhener";
     repo = "goshs";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-Me57EOUrpz37fsLYQpmPYjrhIokanS6HmICSjHmqeyU=";
+    hash = "sha256-rbmHtVtHG8cdhFpVM5A8XlJbeB3Uh/OyUKqmYMPZeU8=";
   };
 
-  vendorHash = "sha256-bDfeQQMMMUGLNvmFKEUgGhFkvY3emQp9lNVPbz2QiNk=";
+  vendorHash = "sha256-wn+t6xY4zUK6NE5kZSefHYGpMq5whFZ644ij5bDs50I=";
 
   ldflags = [
     "-s"
     "-w"
   ];
-
-  nativeInstallCheckInputs = [ versionCheckHook ];
 
   doInstallCheck = true;
 
@@ -41,10 +42,17 @@ buildGoModule (finalAttrs: {
     "-skip=^TestGetIPv4Addr$"
   ];
 
+  # Disabled until https://github.com/patrickhener/goshs/issues/137 is resolved
+  # passthru.tests.version = testers.testVersion {
+  #   package = goshs;
+  #   command = "goshs -v";
+  #   version = "goshs ${finalAttrs.version}";
+  # };
+
   meta = {
     description = "Simple, yet feature-rich web server written in Go";
     homepage = "https://goshs.de";
-    changelog = "https://github.com/patrickhener/goshs/releases/tag/v${finalAttrs.version}";
+    changelog = "https://github.com/patrickhener/goshs/releases/tag/${finalAttrs.src.rev}";
     license = lib.licenses.mit;
     maintainers = with lib.maintainers; [
       fab

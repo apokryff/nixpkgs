@@ -24,13 +24,13 @@
 
 buildGoModule rec {
   pname = "ecapture";
-  version = "1.4.0";
+  version = "1.5.2";
 
   src = fetchFromGitHub {
     owner = "gojue";
     repo = "ecapture";
     tag = "v${version}";
-    hash = "sha256-2YuBgN7KUH8pgFSvvk0gpkAc1YCL8NLrU/UtQ9ykyqw=";
+    hash = "sha256-GWz+zlaP+kNF0G3hZJ2GJXusihGgEpxVdOlgAiHIH4s=";
     fetchSubmodules = true;
   };
 
@@ -52,7 +52,11 @@ buildGoModule rec {
     glibc
   ];
 
-  CGO_LDFLAGS = "-lpcap -lpthread -static";
+  env.CGO_LDFLAGS = toString [
+    "-lpcap"
+    "-lpthread"
+    "-static"
+  ];
 
   ldflags = [
     "-extldflags '-static'"
@@ -122,7 +126,7 @@ buildGoModule rec {
     in
     [ "-skip=^${builtins.concatStringsSep "$|^" skippedTests}$" ];
 
-  vendorHash = "sha256-cN6pCfc9LEItASCoZ4+BU1AOtwMmFaUEzOM/BZ13jcI=";
+  vendorHash = "sha256-esBALagv8J4UPYAzV2x3joF0MUxco4OHDFlL32yXe6E=";
 
   passthru.updateScript = nix-update-script { };
 

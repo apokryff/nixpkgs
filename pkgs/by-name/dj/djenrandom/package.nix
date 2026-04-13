@@ -4,14 +4,14 @@
   fetchFromGitHub,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "djenrandom";
   version = "1.0";
 
   src = fetchFromGitHub {
     owner = "dj-on-github";
     repo = "djenrandom";
-    rev = "${version}";
+    rev = "${finalAttrs.version}";
     hash = "sha256-r5UT8z8vvFZDffsl6CqBXuvBaZ/sl1WLxJi26CxkpAw=";
   };
 
@@ -33,7 +33,7 @@ stdenv.mkDerivation rec {
   meta = {
     homepage = "http://www.deadhat.com/";
     description = ''
-      A C program to generate random data using several random models,
+      C program to generate random data using several random models,
       with parameterized non uniformities and flexible output formats
     '';
     license = lib.licenses.gpl2Only;
@@ -45,4 +45,4 @@ stdenv.mkDerivation rec {
     ];
     mainProgram = "djenrandom";
   };
-}
+})

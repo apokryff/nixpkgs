@@ -36,23 +36,23 @@ deployAndroidPackage {
         nss
         nspr
         alsa-lib
-        llvmPackages_15.libllvm.lib
         waylandpp.lib
+        libgbm
       ]
     )
-    ++ (with pkgs.xorg; [
-      libX11
-      libXext
-      libXdamage
-      libXfixes
+    ++ (with pkgs; [
+      libx11
+      libxext
+      libxdamage
+      libxfixes
       libxcb
-      libXcomposite
-      libXcursor
-      libXi
-      libXrender
-      libXtst
-      libICE
-      libSM
+      libxcomposite
+      libxcursor
+      libxi
+      libxrender
+      libxtst
+      libice
+      libsm
       libxkbfile
       libxshmfence
     ])
@@ -70,10 +70,6 @@ deployAndroidPackage {
         patchelf --replace-needed libtiff.so.5 libtiff.so "$file" || true
       done
 
-      for file in $out/libexec/android-sdk/emulator/lib64/vulkan/libvulkan_lvp.so; do
-        patchelf --replace-needed libLLVM-15.so.1 libLLVM-15.so "$file" || true
-      done
-
       autoPatchelf $out
 
       # Wrap emulator so that it can load required libraries at runtime
@@ -85,7 +81,7 @@ deployAndroidPackage {
           ]
         } \
         --set QT_XKB_CONFIG_ROOT ${pkgs.xkeyboard_config}/share/X11/xkb \
-        --set QTCOMPOSE ${pkgs.xorg.libX11.out}/share/X11/locale
+        --set QTCOMPOSE ${pkgs.libx11.out}/share/X11/locale
     '')
     + ''
       mkdir -p $out/bin

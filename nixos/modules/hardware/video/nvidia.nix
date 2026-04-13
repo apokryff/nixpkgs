@@ -93,6 +93,20 @@ in
         the NVIDIA docs, on Chapter 22. PCI-Express Runtime D3 (RTD3) Power Management
       '';
 
+      powerManagement.kernelSuspendNotifier =
+        lib.mkEnableOption ''
+          NVIDIA driver support for kernel suspend notifiers, which allows the driver
+          to be notified of suspend and resume events by the kernel, rather than
+          relying on systemd services.
+          Requires NVIDIA driver version 595 or newer, and the open source kernel modules.
+        ''
+        // {
+          default = useOpenModules && lib.versionAtLeast nvidia_x11.version "595";
+          defaultText = lib.literalExpression ''
+            config.hardware.nvidia.open == true && lib.versionAtLeast config.hardware.nvidia.package.version "595"
+          '';
+        };
+
       dynamicBoost.enable = lib.mkEnableOption ''
         dynamic Boost balances power between the CPU and the GPU for improved
         performance on supported laptops using the nvidia-powerd daemon. For more
@@ -229,7 +243,7 @@ in
 
         Warning: This feature is relatively new, depending on your system this might
         work poorly. AMD support, especially so.
-        See: https://forums.developer.nvidia.com/t/the-all-new-outputsink-feature-aka-reverse-prime/129828
+        See: <https://forums.developer.nvidia.com/t/the-all-new-outputsink-feature-aka-reverse-prime/129828>
 
         Note that this option only has any effect if the "nvidia" driver is specified
         in {option}`services.xserver.videoDrivers`, and it should preferably
@@ -315,13 +329,9 @@ in
           '';
         };
 
-      videoAcceleration =
-        (lib.mkEnableOption ''
-          Whether video acceleration (VA-API) should be enabled.
-        '')
-        // {
-          default = true;
-        };
+      videoAcceleration = lib.mkEnableOption "video acceleration (VA-API)" // {
+        default = true;
+      };
     };
   };
 
@@ -333,7 +343,7 @@ in
     lib.mkIf cfg.enabled (
       lib.mkMerge [
         # Common
-        ({
+        {
           assertions = [
             {
               assertion = !(nvidiaEnabled && cfg.datacenter.enable);
@@ -350,6 +360,7 @@ in
           boot = {
             blacklistedKernelModules = [
               "nouveau"
+              "nova_core"
               "nvidiafb"
             ];
 
@@ -388,7 +399,7 @@ in
             extraPackages32 = [ nvidia_x11.lib32 ];
           };
           environment.systemPackages = [ nvidia_x11.bin ];
-        })
+        }
 
         # X11
         (lib.mkIf nvidiaEnabled {
@@ -464,6 +475,13 @@ in
               assertion = cfg.dynamicBoost.enable -> lib.versionAtLeast nvidia_x11.version "510.39.01";
               message = "NVIDIA's Dynamic Boost feature only exists on versions >= 510.39.01";
             }
+
+            {
+              assertion =
+                cfg.powerManagement.kernelSuspendNotifier
+                -> (useOpenModules && lib.versionAtLeast nvidia_x11.version "595");
+              message = "NVIDIA driver support for kernel suspend notifiers requires NVIDIA driver version 595 or newer, and the open source kernel modules.";
+            }
           ];
 
           # If Optimus/PRIME is enabled, we:
@@ -487,7 +505,7 @@ in
             lib.optional primeEnabled {
               name = igpuDriver;
               display = offloadCfg.enable;
-              modules = lib.optional (igpuDriver == "amdgpu") pkgs.xorg.xf86videoamdgpu;
+              modules = lib.optional (igpuDriver == "amdgpu") pkgs.xf86-video-amdgpu;
               deviceSection = ''
                 BusID "${igpuBusId}"
               ''
@@ -537,7 +555,7 @@ in
               gpuProviderName =
                 if igpuDriver == "amdgpu" then
                   # find the name of the provider if amdgpu
-                  "`${lib.getExe pkgs.xorg.xrandr} --listproviders | ${lib.getExe pkgs.gnugrep} -i AMD | ${lib.getExe pkgs.gnused} -n 's/^.*name://p'`"
+                  "`${lib.getExe pkgs.xrandr} --listproviders | ${lib.getExe pkgs.gnugrep} -i AMD | ${lib.getExe pkgs.gnused} -n 's/^.*name://p'`"
                 else
                   igpuDriver;
               providerCmdParams =
@@ -547,8 +565,8 @@ in
               (syncCfg.enable || (reverseSyncCfg.enable && reverseSyncCfg.setupCommands.enable))
               ''
                 # Added by nvidia configuration module for Optimus/PRIME.
-                ${lib.getExe pkgs.xorg.xrandr} --setprovideroutputsource ${providerCmdParams}
-                ${lib.getExe pkgs.xorg.xrandr} --auto
+                ${lib.getExe pkgs.xrandr} --setprovideroutputsource ${providerCmdParams}
+                ${lib.getExe pkgs.xrandr} --auto
               '';
 
           environment.etc = {
@@ -575,7 +593,9 @@ in
               ''
             );
 
-          systemd.packages = lib.optional cfg.powerManagement.enable nvidia_x11.out;
+          systemd.packages = lib.optional (
+            cfg.powerManagement.enable && !cfg.powerManagement.kernelSuspendNotifier
+          ) nvidia_x11.out;
 
           systemd.services =
             let
@@ -591,7 +611,7 @@ in
               };
             in
             lib.mkMerge [
-              (lib.mkIf cfg.powerManagement.enable {
+              (lib.mkIf (cfg.powerManagement.enable && !cfg.powerManagement.kernelSuspendNotifier) {
                 nvidia-suspend = nvidiaService "suspend";
                 nvidia-hibernate = nvidiaService "hibernate";
                 nvidia-resume = (nvidiaService "resume") // {
@@ -668,8 +688,15 @@ in
               ++ lib.optional (
                 (offloadCfg.enable || cfg.modesetting.enable) && lib.versionAtLeast nvidia_x11.version "545"
               ) "nvidia-drm.fbdev=1"
+              ++ lib.optional (
+                cfg.powerManagement.enable && cfg.powerManagement.kernelSuspendNotifier
+              ) "nvidia.NVreg_UseKernelSuspendNotifiers=1"
               ++ lib.optional cfg.powerManagement.enable "nvidia.NVreg_PreserveVideoMemoryAllocations=1"
-              ++ lib.optional useOpenModules "nvidia.NVreg_OpenRmEnableUnsupportedGpus=1"
+              ++ lib.optional (
+                useOpenModules
+                && lib.versionAtLeast nvidia_x11.version "515.43.04"
+                && lib.versionOlder nvidia_x11.version "545.23.06"
+              ) "nvidia.NVreg_OpenRmEnableUnsupportedGpus=1"
               ++ lib.optional (config.boot.kernelPackages.kernel.kernelAtLeast "6.2" && !ibtSupport) "ibt=off";
 
             # enable finegrained power management
@@ -709,7 +736,7 @@ in
                 "L+ /run/nvidia-docker/extras/bin/nvidia-persistenced - - - - ${nvidia_x11.persistenced}/origBin/nvidia-persistenced";
 
             services = lib.mkMerge [
-              ({
+              {
                 nvidia-fabricmanager = {
                   enable = true;
                   description = "Start NVIDIA NVLink Management";
@@ -736,7 +763,7 @@ in
                     LimitCORE = "infinity";
                   };
                 };
-              })
+              }
               (lib.mkIf cfg.nvidiaPersistenced {
                 "nvidia-persistenced" = {
                   description = "NVIDIA Persistence Daemon";

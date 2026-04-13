@@ -2,13 +2,13 @@
   lib,
   stdenv,
   buildPythonPackage,
-  pythonOlder,
   fetchFromGitHub,
   gevent,
   pika,
   prometheus-client,
   pylibmc,
   pytestCheckHook,
+  pytest-benchmark,
   pytest-cov-stub,
   redis,
   setuptools,
@@ -18,16 +18,14 @@
 
 buildPythonPackage rec {
   pname = "dramatiq";
-  version = "1.18.0";
+  version = "2.0.1";
   pyproject = true;
-
-  disabled = pythonOlder "3.9";
 
   src = fetchFromGitHub {
     owner = "Bogdanp";
     repo = "dramatiq";
     tag = "v${version}";
-    hash = "sha256-noq2tWi7IUdYmRB9N3MN9oWrnNaYBgXFumOpcGw8Jn0=";
+    hash = "sha256-VqMHSn2mdkO140t7IpZt32OHoEU0nEXiRWJ0w6Km0o8=";
   };
 
   build-system = [ setuptools ];
@@ -56,16 +54,13 @@ buildPythonPackage rec {
   nativeCheckInputs = [
     pytestCheckHook
     pytest-cov-stub
+    pytest-benchmark
     pika
     redis
     pylibmc
   ];
 
-  postPatch = ''
-    sed -i ./setup.cfg \
-      -e 's:--benchmark-autosave::' \
-      -e 's:--benchmark-compare::' \
-  '';
+  pytestFlags = [ "--benchmark-disable" ];
 
   disabledTests = [
     # Requires a running redis
@@ -89,6 +84,9 @@ buildPythonPackage rec {
     "test_rabbitmq_process_100k_messages_with_cli"
     "test_rabbitmq_process_10k_fib_with_cli"
     "test_rabbitmq_process_1k_latency_with_cli"
+    # AssertionError
+    "test_cli_scrubs_stale_pid_files"
+    "test_message_contains_requeue_time_after_retry"
   ]
   ++ lib.optionals stdenv.hostPlatform.isDarwin [
     # Takes too long for darwin ofborg
@@ -97,10 +95,10 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "dramatiq" ];
 
-  meta = with lib; {
+  meta = {
     description = "Background Processing for Python 3";
     homepage = "https://github.com/Bogdanp/dramatiq";
-    license = licenses.gpl3Only;
-    maintainers = with maintainers; [ traxys ];
+    license = lib.licenses.gpl3Only;
+    maintainers = with lib.maintainers; [ traxys ];
   };
 }

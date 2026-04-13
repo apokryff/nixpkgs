@@ -14,20 +14,22 @@
 
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "nickel";
-  version = "1.12.2";
+  version = "1.16.0";
 
   src = fetchFromGitHub {
     owner = "tweag";
     repo = "nickel";
     tag = finalAttrs.version;
-    hash = "sha256-nxBZIs7s/v465iV3m//I7otYr9Fk/+YjtXFXcYnEpRw=";
+    hash = "sha256-G+ik4tMr+WsDpiEFYv80ruBR/SpeEg9agUWqgXrq7UI=";
   };
 
-  cargoHash = "sha256-DDlHSSZiVbAGnowiuewgG1KwfyhfL7wnMjhEsrVMvvY=";
+  cargoHash = "sha256-E3UBkLxd7AC/Pk1Zgy+KvHTPXgATqIr7lZXPB8vlSWs=";
 
   cargoBuildFlags = [
-    "-p nickel-lang-cli"
-    "-p nickel-lang-lsp"
+    "--package"
+    "nickel-lang-cli"
+    "--package"
+    "nickel-lang-lsp"
   ];
 
   nativeBuildInputs = [
@@ -39,7 +41,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
   ];
 
   buildInputs = lib.optionals enableNixImport [
-    nixVersions.nix_2_24
+    nixVersions.nix_2_28
     boost
   ];
 
@@ -76,7 +78,6 @@ rustPlatform.buildRustPackage (finalAttrs: {
   nativeInstallCheckInputs = [
     versionCheckHook
   ];
-  versionCheckProgramArg = "--version";
   doInstallCheck = true;
 
   passthru.updateScript = nix-update-script { };

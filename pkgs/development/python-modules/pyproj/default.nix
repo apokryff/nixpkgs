@@ -2,31 +2,30 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
+  fetchpatch2,
   pytestCheckHook,
-  pythonOlder,
   replaceVars,
 
   certifi,
   cython,
-  mock,
   numpy,
   pandas,
   proj,
+  setuptools,
   shapely,
   xarray,
 }:
 
 buildPythonPackage rec {
   pname = "pyproj";
-  version = "3.7.1";
-  format = "setuptools";
-  disabled = pythonOlder "3.9";
+  version = "3.7.2";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "pyproj4";
     repo = "pyproj";
     tag = version;
-    hash = "sha256-tVzifc+Y5u9Try5FHt67rj/+zaok0JNn3M8plMqX90g=";
+    hash = "sha256-WV344gxcmq08sIUVevn6uD50FSy4JvLt4aret5ZakYQ=";
   };
 
   # force pyproj to use ${proj}
@@ -35,15 +34,35 @@ buildPythonPackage rec {
       proj = proj;
       projdev = proj.dev;
     })
+    # PROJ 9.8.0 compatibility
+    (fetchpatch2 {
+      url = "https://github.com/pyproj4/pyproj/pull/1557.diff?full_index=1";
+      hash = "sha256-3iK/JaQEgyQvPjybJF/ATxOy3fFl7q6aa9tdfsrhajM=";
+    })
+    (fetchpatch2 {
+      url = "https://github.com/pyproj4/pyproj/pull/1560.diff?full_index=1";
+      hash = "sha256-fr+lvDeVFDagc9aHzaQhyZtWK2sy5kR7iImJsuxW8Z4=";
+    })
+    (fetchpatch2 {
+      url = "https://github.com/pyproj4/pyproj/pull/1568.diff?full_index=1";
+      hash = "sha256-fVFg3/ikOk6LiRHA/u14g+ZFsROGE7me878Vvq4mxG4=";
+    })
+    (fetchpatch2 {
+      url = "https://github.com/pyproj4/pyproj/pull/1581.diff?full_index=1";
+      hash = "sha256-EdzUCt4P99ENS2qCBU30FUNnJYD0B2CqcmZXwEYLdVA=";
+    })
   ];
 
-  nativeBuildInputs = [ cython ];
+  build-system = [
+    cython
+    setuptools
+  ];
+
   buildInputs = [ proj ];
 
-  propagatedBuildInputs = [ certifi ];
+  dependencies = [ certifi ];
 
   nativeCheckInputs = [
-    mock
     numpy
     pandas
     pytestCheckHook
@@ -57,7 +76,6 @@ buildPythonPackage rec {
   '';
 
   disabledTestPaths = [
-    "test/test_doctest_wrapper.py"
     "test/test_datadir.py"
   ];
 
@@ -65,25 +83,13 @@ buildPythonPackage rec {
     # The following tests try to access network and end up with a URLError
     "test__load_grid_geojson_old_file"
     "test_get_transform_grid_list"
-    "test_get_transform_grid_list__area_of_use"
-    "test_get_transform_grid_list__bbox__antimeridian"
-    "test_get_transform_grid_list__bbox__out_of_bounds"
-    "test_get_transform_grid_list__contains"
-    "test_get_transform_grid_list__file"
-    "test_get_transform_grid_list__source_id"
     "test_sync__area_of_use__list"
     "test_sync__bbox__list"
-    "test_sync__bbox__list__exclude_world_coverage"
     "test_sync__download_grids"
     "test_sync__file__list"
     "test_sync__source_id__list"
     "test_sync_download"
-    "test_sync_download__directory"
-    "test_sync_download__system_directory"
     "test_transformer_group__download_grids"
-
-    # proj-data grid required
-    "test_azimuthal_equidistant"
   ];
 
   pythonImportsCheck = [
@@ -102,16 +108,15 @@ buildPythonPackage rec {
     "pyproj.exceptions"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Python interface to PROJ library";
     mainProgram = "pyproj";
     homepage = "https://github.com/pyproj4/pyproj";
     changelog = "https://github.com/pyproj4/pyproj/blob/${src.rev}/docs/history.rst";
-    license = licenses.mit;
-    maintainers = with maintainers; [
-      lsix
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [
       dotlambda
     ];
-    teams = [ teams.geospatial ];
+    teams = [ lib.teams.geospatial ];
   };
 }

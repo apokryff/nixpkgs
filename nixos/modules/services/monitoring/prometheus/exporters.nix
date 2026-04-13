@@ -10,11 +10,9 @@
 let
   inherit (lib)
     concatStrings
-    foldl
     foldl'
     genAttrs
     literalExpression
-    maintainers
     mapAttrs
     mapAttrsToList
     mkDefault
@@ -22,9 +20,7 @@ let
     mkIf
     mkMerge
     mkOption
-    optional
     types
-    mkOptionDefault
     flip
     attrNames
     xor
@@ -79,6 +75,7 @@ let
         "jitsi"
         "json"
         "junos-czerwonk"
+        "kafka"
         "kea"
         "keylight"
         "klipper"
@@ -100,6 +97,7 @@ let
         "node-cert"
         "nut"
         "nvidia-gpu"
+        "opnsense"
         "pgbouncer"
         "php-fpm"
         "pihole"
@@ -112,7 +110,6 @@ let
         "rasdaemon"
         "redis"
         "restic"
-        "rspamd"
         "rtl_433"
         "sabnzbd"
         "scaphandre"
@@ -123,8 +120,10 @@ let
         "snmp"
         "sql"
         "statsd"
+        "storagebox"
         "surfboard"
         "systemd"
+        "tailscale"
         "tibber"
         "unbound"
         "unpoller"
@@ -324,6 +323,7 @@ let
           description = "Prometheus ${name} exporter service user";
           isSystemUser = true;
           inherit (conf) group;
+          extraGroups = mkIf (name == "libvirt") [ "libvirtd" ];
         }
       );
       users.groups = mkMerge [
@@ -342,7 +342,7 @@ let
         "-m comment --comment ${name}-exporter -j nixos-fw-accept"
       ]);
       networking.firewall.extraInputRules = mkIf (conf.openFirewall && nftables) conf.firewallRules;
-      systemd.services."prometheus-${name}-exporter" = mkMerge ([
+      systemd.services."prometheus-${name}-exporter" = mkMerge [
         {
           wantedBy = [ "multi-user.target" ];
           after = [ "network.target" ];
@@ -379,14 +379,14 @@ let
           serviceConfig.UMask = "0077";
         }
         serviceOpts
-      ]);
+      ];
     };
 in
 {
 
   options.services.prometheus.exporters = mkOption {
     type = types.submodule {
-      options = (mkSubModules);
+      options = mkSubModules;
       imports = [
         ../../../misc/assertions.nix
         (lib.mkRenamedOptionModule [ "unifi-poller" ] [ "unpoller" ])
@@ -396,6 +396,10 @@ in
         '')
         (lib.mkRemovedOptionModule [ "tor" ] ''
           The Tor exporter has been removed, as it was broken and unmaintained.
+        '')
+        (lib.mkRemovedOptionModule [ "rspamd" ] ''
+          The Rspamd exporter has been removed. You can use the Rspamd /metrics endpoint directly instead:
+          https://docs.rspamd.com/developers/protocol#controller-http-endpoints
         '')
       ];
     };
@@ -566,16 +570,6 @@ in
     ++ [
       (mkIf config.services.postfix.enable {
         services.prometheus.exporters.postfix.group = mkDefault config.services.postfix.setgidGroup;
-      })
-    ]
-    ++ [
-      (mkIf config.services.prometheus.exporters.deluge.enable {
-        system.activationScripts = {
-          deluge-exported.text = ''
-            mkdir -p /etc/deluge-exporter
-            echo "DELUGE_PASSWORD=$(cat ${config.services.prometheus.exporters.deluge.delugePasswordFile})" > /etc/deluge-exporter/password
-          '';
-        };
       })
     ]
     ++ (mapAttrsToList (

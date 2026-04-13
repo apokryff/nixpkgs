@@ -33,23 +33,6 @@ stdenv.mkDerivation (
         url = "https://github.com/alire-project/GNAT-FSF-builds/releases/download/gnat-${finalAttrs.version}/gnat-${stdenv.hostPlatform.system}-${finalAttrs.version}.tar.gz";
       in
       {
-        "11" = {
-          gccVersion = "11.2.0";
-          alireRevision = "4";
-        }
-        // {
-          x86_64-darwin = {
-            inherit url;
-            hash = "sha256-FmBgD20PPQlX/ddhJliCTb/PRmKxe9z7TFPa2/SK4GY=";
-            upstreamTriplet = "x86_64-apple-darwin19.6.0";
-          };
-          x86_64-linux = {
-            inherit url;
-            hash = "sha256-8fMBJp6igH+Md5jE4LMubDmC4GLt4A+bZG/Xcz2LAJQ=";
-            upstreamTriplet = "x86_64-pc-linux-gnu";
-          };
-        }
-        .${stdenv.hostPlatform.system} or throwUnsupportedSystem;
         "12" = {
           gccVersion = "12.1.0";
           alireRevision = "2";
@@ -226,6 +209,12 @@ stdenv.mkDerivation (
         fi
       done
 
+    ''
+
+    # x86_64-darwin needs this for the reason above, and aarch64-linux needs it
+    # to avoid https://gcc.gnu.org/bugzilla/show_bug.cgi?id=118009,
+    # but x86_64-linux doesn't seem to need it.
+    + lib.optionalString (stdenv.hostPlatform.system != "x86_64-linux") ''
       "$out"/libexec/gcc/${upstreamTriplet}/${gccVersion}/install-tools/mkheaders -v -v \
         "$out" "${stdenv.cc.libc}"
     '';
@@ -238,11 +227,11 @@ stdenv.mkDerivation (
       isGNU = true;
     };
 
-    meta = with lib; {
+    meta = {
       description = "GNAT, the GNU Ada Translator";
       homepage = "https://www.gnu.org/software/gnat";
-      license = licenses.gpl3;
-      maintainers = with maintainers; [ ethindp ];
+      license = lib.licenses.gpl3;
+      maintainers = with lib.maintainers; [ ethindp ];
       platforms = [
         "x86_64-linux"
         "x86_64-darwin"

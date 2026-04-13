@@ -12,16 +12,16 @@
 
 buildGoModule rec {
   pname = "step-kms-plugin";
-  version = "0.14.2";
+  version = "0.16.0";
 
   src = fetchFromGitHub {
     owner = "smallstep";
     repo = "step-kms-plugin";
     rev = "v${version}";
-    hash = "sha256-0RIAwZbk6DNlJHTmxUd/td94OlrjwcQ86ao7wt7PSdg=";
+    hash = "sha256-q06so1hbiBhQ3TYKEI6C9yO0KctWVMnqGaMJpnWiEag=";
   };
 
-  vendorHash = "sha256-YvK3icanE8FoTeACfReVXmV143lcRTyXv8L6+hoFIaM=";
+  vendorHash = "sha256-kuKKATZ7GoAy4NU8Zs/zHYdjZ++OTcT9Ep3sunEOpR0=";
 
   proxyVendor = true;
 
@@ -42,13 +42,13 @@ buildGoModule rec {
     "-X github.com/smallstep/step-kms-plugin/cmd.Version=${version}"
   ];
 
-  meta = with lib; {
-    description = "step plugin to manage keys and certificates on cloud KMSs and HSMs";
+  env.CGO_CFLAGS = "-I${lib.getDev pcsclite}/include/PCSC/";
+
+  meta = {
+    description = "Step plugin to manage keys and certificates on cloud KMSs and HSMs";
     homepage = "https://smallstep.com/cli/";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ qbit ];
+    license = lib.licenses.asl20;
+    maintainers = [ ];
     mainProgram = "step-kms-plugin";
-    # can't find pcsclite header files
-    broken = stdenv.hostPlatform.isDarwin;
   };
 }

@@ -3,7 +3,6 @@
   stdenv,
   buildPythonPackage,
   fetchFromGitHub,
-  pythonOlder,
   aniso8601,
   jsonschema,
   flask,
@@ -24,17 +23,15 @@
 
 buildPythonPackage rec {
   pname = "flask-restx";
-  version = "1.3.0";
+  version = "1.3.2";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   # Tests not included in PyPI tarball
   src = fetchFromGitHub {
     owner = "python-restx";
     repo = "flask-restx";
     tag = version;
-    hash = "sha256-CBReP/u96fsr28lMV1BfLjjdBMXEvsD03wvsxkIcteI=";
+    hash = "sha256-KSHRfGX6M/w09P35A68u7uzMKaRioytScPh0Sw8JBfw=";
   };
 
   build-system = [ setuptools ];
@@ -87,11 +84,11 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "flask_restx" ];
 
-  meta = with lib; {
+  meta = {
     description = "Fully featured framework for fast, easy and documented API development with Flask";
     homepage = "https://github.com/python-restx/flask-restx";
     changelog = "https://github.com/python-restx/flask-restx/blob/${version}/CHANGELOG.rst";
-    license = licenses.bsd3;
+    license = lib.licenses.bsd3;
     maintainers = [ ];
   };
 }

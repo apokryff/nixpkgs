@@ -8,21 +8,18 @@
   pyyaml,
   urllib3,
   fetchPypi,
-  pythonOlder,
   hatchling,
 }:
 
 buildPythonPackage rec {
   pname = "snowflake-core";
-  version = "1.4.0";
+  version = "1.11.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.9";
 
   src = fetchPypi {
     pname = "snowflake_core";
     inherit version;
-    hash = "sha256-3BzO3s5BtS/cuF+JwKuAG8Usca5oo79ffp33TXUP5E8=";
+    hash = "sha256-qNwgnEXUE8P+DrGpOb32R6BapNkWwEJBbeljYYhVU5I=";
   };
 
   build-system = [ hatchling ];

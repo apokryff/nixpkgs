@@ -4,7 +4,7 @@
   fetchFromGitHub,
   makeWrapper,
   cargo,
-  llvm_16,
+  llvm,
   stdenv,
   libffi,
   libz,
@@ -13,14 +13,14 @@
   nix-update-script,
 }:
 
-rustPlatform.buildRustPackage (finalAttr: {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "ivm";
   version = "0.6.0";
 
   src = fetchFromGitHub {
     owner = "inko-lang";
     repo = "ivm";
-    tag = "v${finalAttr.version}";
+    tag = "v${finalAttrs.version}";
     hash = "sha256-pqqUvHK6mPrK1Mir2ILANxtih9OrAKDJPE0nRWc5JOY=";
   };
 
@@ -39,7 +39,7 @@ rustPlatform.buildRustPackage (finalAttr: {
       --prefix PATH : ${
         lib.makeBinPath [
           cargo
-          llvm_16.dev
+          llvm.dev
           stdenv.cc
         ]
       } \

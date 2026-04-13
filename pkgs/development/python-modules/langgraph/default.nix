@@ -18,12 +18,14 @@
   # tests
   aiosqlite,
   dataclasses-json,
+  fakeredis,
   grandalf,
   httpx,
   langgraph-checkpoint-postgres,
   langgraph-checkpoint-sqlite,
   langsmith,
   psycopg,
+  pycryptodome,
   pytest-asyncio,
   pytest-mock,
   pytest-repeat,
@@ -32,20 +34,21 @@
   syrupy,
   postgresql,
   postgresqlTestHook,
+  redisTestHook,
 
   # passthru
   nix-update-script,
 }:
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "langgraph";
-  version = "0.6.1";
+  version = "1.1.6";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "langchain-ai";
     repo = "langgraph";
-    tag = version;
-    hash = "sha256-8mubZSV1CDgYzykKaaWqn04yJldAgdGmgZDm54towWc=";
+    tag = finalAttrs.version;
+    hash = "sha256-9YuvzPmyNOfx8AolUaY8XFeYUpWRmudtLEAUadRUAqY=";
   };
 
   postgresqlTestSetupPost = ''
@@ -55,7 +58,7 @@ buildPythonPackage rec {
       --replace-fail "DEFAULT_POSTGRES_URI = \"postgres://postgres:postgres@localhost:5442/\"" "DEFAULT_POSTGRES_URI = \"postgres:///$PGDATABASE\""
   '';
 
-  sourceRoot = "${src.name}/libs/langgraph";
+  sourceRoot = "${finalAttrs.src.name}/libs/langgraph";
 
   build-system = [ hatchling ];
 
@@ -78,6 +81,9 @@ buildPythonPackage rec {
     pytestCheckHook
     postgresql
     postgresqlTestHook
+    redisTestHook
+    fakeredis
+    langgraph-checkpoint
   ];
 
   checkInputs = [
@@ -90,6 +96,7 @@ buildPythonPackage rec {
     langsmith
     psycopg
     psycopg.pool
+    pycryptodome
     pydantic
     pytest-asyncio
     pytest-mock
@@ -99,6 +106,10 @@ buildPythonPackage rec {
   ];
 
   disabledTests = [
+    # Requires `langgraph dev` to be running
+    "test_remote_graph_basic_invoke"
+    "test_remote_graph_stream_messages_tuple"
+
     # Disabling tests that requires to create new random databases
     "test_cancel_graph_astream"
     "test_cancel_graph_astream_events_v2"
@@ -112,10 +123,7 @@ buildPythonPackage rec {
     "test_no_modifier"
     "test_pending_writes_resume"
     "test_remove_message_via_state_update"
-
-    # Requires `langgraph dev` to be running
-    "test_remote_graph_basic_invoke"
-    "test_remote_graph_stream_messages_tuple"
+    "test_interrupt_functional_pydantic"
   ];
 
   disabledTestPaths = [
@@ -125,21 +133,29 @@ buildPythonPackage rec {
     "tests/test_large_cases_async.py"
     "tests/test_pregel.py"
     "tests/test_pregel_async.py"
+    "tests/test_subgraph_persistence.py"
+    "tests/test_subgraph_persistence_async.py"
+    "tests/test_time_travel.py"
+    "tests/test_time_travel_async.py"
   ];
 
   # Since `langgraph` is the only unprefixed package, we have to use an explicit match
-  passthru.updateScript = nix-update-script {
-    extraArgs = [
-      "--version-regex"
-      "([0-9.]+)"
-    ];
+  passthru = {
+    # python updater script sets the wrong tag
+    skipBulkUpdate = true;
+    updateScript = nix-update-script {
+      extraArgs = [
+        "--version-regex"
+        "([0-9.]+)"
+      ];
+    };
   };
 
   meta = {
     description = "Build resilient language agents as graphs";
     homepage = "https://github.com/langchain-ai/langgraph";
-    changelog = "https://github.com/langchain-ai/langgraph/releases/tag/${src.tag}";
+    changelog = "https://github.com/langchain-ai/langgraph/releases/tag/${finalAttrs.src.tag}";
     license = lib.licenses.mit;
     maintainers = with lib.maintainers; [ sarahec ];
   };
-}
+})

@@ -6,11 +6,11 @@
 
 buildDunePackage {
   pname = "unisim_archisec";
-  version = "0.0.11";
+  version = "0.0.13";
 
   src = fetchurl {
-    url = "https://github.com/binsec/unisim_archisec/releases/download/0.0.11/unisim_archisec-0.0.11.tbz";
-    sha256 = "sha256-stzs1BQ7M+q2R82CUdzvP0FVBUvupychbm8z89o4ORY=";
+    url = "https://github.com/binsec/unisim_archisec/releases/download/0.0.13/unisim_archisec-0.0.13.tbz";
+    sha256 = "sha256-pDLbsF6n4HSGQyWWEb7/RWK+nCWfS+p6Dy/G5jlnlk0=";
   };
 
   duneVersion = "3";

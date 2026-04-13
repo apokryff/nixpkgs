@@ -5,18 +5,18 @@
   buildGoModule,
 }:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "gerbil";
-  version = "1.1.0";
+  version = "1.3.1";
 
   src = fetchFromGitHub {
     owner = "fosrl";
     repo = "gerbil";
-    tag = version;
-    hash = "sha256-vfeI3GNI910FQmHK53E6yPrWF3tQtjrpQ/oP2PcDzs4=";
+    tag = finalAttrs.version;
+    hash = "sha256-liz1v0vMYH9AbGmKHZV7IBYBAT8fkjUsGzNqRXYDmpU=";
   };
 
-  vendorHash = "sha256-m6UfW+DVT0T/t7fiqZXc2ihg2O07C7LnR0uy4FDWPCA=";
+  vendorHash = "sha256-NtyU/zKysl9h0wqOtwizrOAJK5ODIc8ZvVtbkogBhm8=";
 
   # patch out the /usr/sbin/iptables
   postPatch = ''
@@ -28,12 +28,12 @@ buildGoModule rec {
     description = "Simple WireGuard interface management server";
     mainProgram = "gerbil";
     homepage = "https://github.com/fosrl/gerbil";
-    changelog = "https://github.com/fosrl/gerbil/releases/tag/${version}";
+    changelog = "https://github.com/fosrl/gerbil/releases/tag/${finalAttrs.version}";
     license = lib.licenses.agpl3Only;
     maintainers = with lib.maintainers; [
       jackr
-      sigmasquadron
+      water-sucks
     ];
     platforms = lib.platforms.linux;
   };
-}
+})

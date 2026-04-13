@@ -30,15 +30,15 @@
   dbusSupport ? true,
 }:
 
-stdenv.mkDerivation rec {
-  version = "3.24.0";
+stdenv.mkDerivation (finalAttrs: {
+  version = "4.7.0";
   pname = "baresip";
 
   src = fetchFromGitHub {
     owner = "baresip";
     repo = "baresip";
-    rev = "v${version}";
-    hash = "sha256-32XyMblHF+ST+TpIbdyPFdRtWnIugYMr4lYZnfeFm/c=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-IfzLwK6mDfMPug6vRfsOJwByP6LwGkefh8lBC75eVbU=";
   };
 
   patches = [
@@ -185,11 +185,10 @@ stdenv.mkDerivation rec {
     homepage = "https://github.com/baresip/baresip";
     maintainers = with lib.maintainers; [
       raskin
-      ehmry
       rnhmjoj
     ];
     mainProgram = "baresip";
     license = lib.licenses.bsd3;
     platforms = lib.platforms.unix;
   };
-}
+})

@@ -9,13 +9,13 @@
 
 stdenv.mkDerivation rec {
   pname = "polyml";
-  version = "5.9.1";
+  version = "5.9.2";
 
   src = fetchFromGitHub {
     owner = "polyml";
     repo = "polyml";
     rev = "v${version}";
-    sha256 = "sha256-72wm8dt+Id59A5058mVE5P9TkXW5/LZRthZoxUustVA=";
+    sha256 = "sha256-dHP5XNoLcFIqASfZVWu3MtY3B3H66skEl8ohlwTGyyM=";
   };
 
   postPatch = ''
@@ -50,16 +50,15 @@ stdenv.mkDerivation rec {
     runHook postCheck
   '';
 
-  meta = with lib; {
+  meta = {
     description = "Standard ML compiler and interpreter";
     longDescription = ''
       Poly/ML is a full implementation of Standard ML.
     '';
     homepage = "https://www.polyml.org/";
-    license = licenses.lgpl21;
-    platforms = with platforms; (linux ++ darwin);
-    maintainers = with maintainers; [
-      maggesi
+    license = lib.licenses.lgpl21;
+    platforms = with lib.platforms; (linux ++ darwin);
+    maintainers = with lib.maintainers; [
       kovirobi
     ];
   };

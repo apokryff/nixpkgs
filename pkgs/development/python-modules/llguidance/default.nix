@@ -3,8 +3,9 @@
   stdenv,
   buildPythonPackage,
   fetchFromGitHub,
+  pythonAtLeast,
 
-  # build-system
+  # nativeBuildInputs
   cargo,
   pkg-config,
   rustPlatform,
@@ -18,27 +19,26 @@
   pytestCheckHook,
   torch,
   transformers,
-  pythonOlder,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "llguidance";
-  version = "0.7.19";
+  version = "1.7.2";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "guidance-ai";
     repo = "llguidance";
-    tag = "v${version}";
-    hash = "sha256-tfTiut8jiGGf2uQLGcC4ieNf4ePFauJZL6vNbWie078=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-Eu+hhYCVoZWMdwrjiHyvbGwjYKnbkBETZNMQ+SOb8AU=";
   };
 
   cargoDeps = rustPlatform.fetchCargoVendor {
-    inherit src;
-    hash = "sha256-I1sjkZgtsBpPVkGL596TjLi9txRmgP5oTIWaM1K5I1E=";
+    inherit (finalAttrs) src pname version;
+    hash = "sha256-oeFm9dPqlJWPnrA7//D31E1W2St+zIRd8pzR6gUhiTg=";
   };
 
-  build-system = [
+  nativeBuildInputs = [
     cargo
     pkg-config
     rustPlatform.cargoSetupHook
@@ -88,17 +88,21 @@ buildPythonPackage rec {
 
   disabledTestPaths = [
     # Require internet access (https://huggingface.co)
+    "python/torch_tests/test_hf.py"
+    "python/torch_tests/test_llamacpp.py"
+    "python/torch_tests/test_tiktoken.py"
     "scripts/tokenizer_test.py"
+  ]
+  ++ lib.optionals (pythonAtLeast "3.14") [
+    # RuntimeError: torch.compile is not supported on Python 3.14+
+    "python/torch_tests/test_bitmask.py"
   ];
-
-  # As dynamo is not supported on Python 3.13+, no successful tests remain.
-  doCheck = pythonOlder "3.13";
 
   meta = {
     description = "Super-fast Structured Outputs";
     homepage = "https://github.com/guidance-ai/llguidance";
-    changelog = "https://github.com/guidance-ai/llguidance/blob/v${version}/CHANGELOG.md";
+    changelog = "https://github.com/guidance-ai/llguidance/blob/${finalAttrs.src.tag}/CHANGELOG.md";
     license = lib.licenses.mit;
     maintainers = with lib.maintainers; [ GaetanLepage ];
   };
-}
+})

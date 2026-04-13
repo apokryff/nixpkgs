@@ -8,27 +8,25 @@
   llama-index-core,
   pymupdf,
   pypdf,
-  pythonOlder,
   striprtf,
 }:
 
 buildPythonPackage rec {
   pname = "llama-index-readers-file";
-  version = "0.4.11";
+  version = "0.6.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchPypi {
     pname = "llama_index_readers_file";
     inherit version;
-    hash = "sha256-GyHLZteN1fYOhxZgfZpHzNgbs5EG1FlmW+HKd5npWXs=";
+    hash = "sha256-/zZtb/XstxGSdayFkxDYtnLYtrMmGvrgL0CE/OkHa9A=";
   };
 
   pythonRelaxDeps = [
     "pymupdf"
     "pypdf"
     "striprtf"
+    "pandas"
   ];
 
   build-system = [ hatchling ];
@@ -47,10 +45,10 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "llama_index.readers.file" ];
 
-  meta = with lib; {
+  meta = {
     description = "LlamaIndex Readers Integration for files";
     homepage = "https://github.com/run-llama/llama_index/tree/main/llama-index-integrations/readers/llama-index-readers-file";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
 }

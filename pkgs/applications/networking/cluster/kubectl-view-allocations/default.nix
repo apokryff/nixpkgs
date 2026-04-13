@@ -8,20 +8,19 @@
 
 rustPlatform.buildRustPackage rec {
   pname = "kubectl-view-allocations";
-  version = "0.23.4";
+  version = "1.1.0";
 
   src = fetchFromGitHub {
     owner = "davidB";
     repo = "kubectl-view-allocations";
     tag = version;
-    hash = "sha256-xSjWUSHgx85K6RAl16S0QCNeveDte2SwHcxkS1EChZU=";
+    hash = "sha256-AZsieePjIFY3xXG39tfwSvRcNgLdvEQSKALXgRCkuc4=";
   };
 
-  cargoHash = "sha256-Dr8ORNje0icV13YdUSxYGPcok3RAXVNsCZKxnprJGSY=";
+  cargoHash = "sha256-0bStmuLFkYsyd7rJlHA7/rXGtlh2CvjXWPnDwoq33v4=";
 
   doInstallCheck = true;
   nativeInstallCheckInputs = [ versionCheckHook ];
-  versionCheckProgramArg = "--version";
 
   meta = {
     description = "kubectl plugin to list allocations (cpu, memory, gpu,... X utilization, requested, limit, allocatable,...)";

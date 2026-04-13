@@ -3,21 +3,20 @@
   fetchFromGitHub,
   nixosTests,
   fetchYarnDeps,
-  nodejs,
   php,
   yarnConfigHook,
   yarnBuildHook,
   yarnInstallHook,
-  nodePackages,
+  grunt-cli,
   fetchzip,
 }:
 let
-  version = "1.6.2";
+  version = "1.7.1";
   # Fetch release tarball which contains language files
   # https://github.com/InvoicePlane/InvoicePlane/issues/1170
   languages = fetchzip {
     url = "https://github.com/InvoicePlane/InvoicePlane/releases/download/v${version}/v${version}.zip";
-    hash = "sha256-ME8ornP2uevvH8DzuI25Z8OV0EP98CBgbunvb2Hbr9M=";
+    hash = "sha256-DpQazuLOJnNGrrQo7l6uQReoKZEd5es2DT0a50NuQB0=";
   };
 in
 php.buildComposerProject2 (finalAttrs: {
@@ -28,32 +27,26 @@ php.buildComposerProject2 (finalAttrs: {
     owner = "InvoicePlane";
     repo = "InvoicePlane";
     tag = "v${version}";
-    hash = "sha256-E2TZ/FhlVKZpGuczXb/QLn27gGiO7YYlAkPSolTEoeQ=";
+    hash = "sha256-Nci5GaCMYIjewq0W5emE6TDgc6JPz4bVVF3okNtHUag=";
   };
 
-  patches = [
-    # Node-sass is deprecated and fails to cross-compile
-    # See: https://github.com/InvoicePlane/InvoicePlane/issues/1275
-    ./node_switch_to_sass.patch
-  ];
+  # Composer.lock validation currently fails for unknown reason
+  composerStrictValidation = true;
 
-  vendorHash = "sha256-eq3YKIZZzZihDYgFH3YTETHvNG6hAE/oJ5Ul2XRMn4U=";
+  vendorHash = "sha256-adKvKWo55SSbEKpgMJzR9vJQA8DnNXOTfSzp7t8s2Nk=";
 
   nativeBuildInputs = [
     yarnConfigHook
     yarnBuildHook
     yarnInstallHook
     # Needed for executing package.json scripts
-    nodePackages.grunt-cli
+    grunt-cli
   ];
 
   offlineCache = fetchYarnDeps {
     inherit (finalAttrs) src patches;
-    hash = "sha256-qAm4HnZwfwfjv7LqG+skmFLTHCSJKWH8iRDWFFebXEs=";
+    hash = "sha256-rJlOYMnzFKui+caIFD4d82Q/RcDYnadeJ1G56fcNNQY=";
   };
-
-  # Upstream composer.json file is missing the name, description and license fields
-  composerStrictValidation = false;
 
   postBuild = ''
     grunt build

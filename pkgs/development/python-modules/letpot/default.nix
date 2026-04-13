@@ -11,14 +11,14 @@
 
 buildPythonPackage rec {
   pname = "letpot";
-  version = "0.6.1";
+  version = "0.6.4";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "jpelgrom";
     repo = "python-letpot";
     tag = "v${version}";
-    hash = "sha256-xcuBDygUpkPzwdGGG+GLQBaMPpkrj49Y/1KKh6w9jmA=";
+    hash = "sha256-ayNgRJb+/hfxxfLQv+RyKiOaYHK50ZrROeeDAsAGCVE=";
   };
 
   build-system = [ poetry-core ];

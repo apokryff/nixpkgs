@@ -6,6 +6,7 @@
   lapack,
   buildPythonPackage,
   fetchFromGitHub,
+  fetchpatch2,
   cudaSupport ? config.cudaSupport,
 
   # build-system
@@ -38,24 +39,32 @@
 let
   usingMKL = blas.implementation == "mkl" || lapack.implementation == "mkl";
 in
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "jax";
-  version = "0.6.2";
+  version = "0.9.2";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "google";
     repo = "jax";
     # google/jax contains tags for jax and jaxlib. Only use jax tags!
-    tag = "jax-v${version}";
-    hash = "sha256-MTgpwpJWxULCiZhDG+MFpOp8ZHoj1ZDmOD05OaGfXhM=";
+    tag = "jax-v${finalAttrs.version}";
+    hash = "sha256-/vLCTAF46M1H0Q64RLM7+IFMofmjZmZ4IFzvm/y7zkg=";
   };
+
+  patches = [
+    # https://github.com/jax-ml/jax/pull/32840
+    (fetchpatch2 {
+      url = "https://github.com/Prince213/jax/commit/af5c211d49f3b99447db2252d2cc2b8e0fb54d1c.patch?full_index=1";
+      hash = "sha256-ijEd+MDe91qyYfE+aMzR5rNmTeGadin6Io8PIfJWc3o=";
+    })
+  ];
 
   build-system = [ setuptools ];
 
   # The version is automatically set to ".dev" if this variable is not set.
   # https://github.com/google/jax/commit/e01f2617b85c5bdffc5ffb60b3d8d8ca9519a1f3
-  JAX_RELEASE = "1";
+  env.JAX_RELEASE = "1";
 
   dependencies = [
     jaxlib
@@ -64,7 +73,7 @@ buildPythonPackage rec {
     opt-einsum
     scipy
   ]
-  ++ lib.optionals cudaSupport optional-dependencies.cuda;
+  ++ lib.optionals cudaSupport finalAttrs.passthru.optional-dependencies.cuda;
 
   optional-dependencies = rec {
     cuda = [ jax-cuda12-plugin ];
@@ -103,6 +112,14 @@ buildPythonPackage rec {
     "tests/pjit_test.py::PJitErrorTest::testAxisResourcesMismatch"
     "tests/shape_poly_test.py::ShapePolyTest"
     "tests/tree_util_test.py::TreeTest"
+
+    # Mostly AssertionError on numerical tests failing since 0.7.0
+    # https://github.com/jax-ml/jax/issues/31428
+    "tests/export_back_compat_test.py"
+    "tests/lax_numpy_test.py"
+    "tests/lax_scipy_test.py"
+    "tests/lax_test.py"
+    "tests/linalg_test.py"
   ];
 
   # Prevents `tests/export_back_compat_test.py::CompatTest::test_*` tests from failing on darwin with
@@ -170,7 +187,11 @@ buildPythonPackage rec {
   meta = {
     description = "Source-built JAX frontend: differentiate, compile, and transform Numpy code";
     homepage = "https://github.com/google/jax";
+    changelog = "https://docs.jax.dev/en/latest/changelog.html";
     license = lib.licenses.asl20;
-    maintainers = with lib.maintainers; [ samuela ];
+    maintainers = with lib.maintainers; [
+      GaetanLepage
+      samuela
+    ];
   };
-}
+})

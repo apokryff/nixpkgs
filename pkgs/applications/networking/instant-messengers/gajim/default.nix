@@ -1,6 +1,6 @@
 {
   lib,
-  fetchurl,
+  fetchFromGitLab,
   gettext,
   wrapGAppsHook3,
 
@@ -11,6 +11,7 @@
   adwaita-icon-theme,
   gtksourceview5,
   glib-networking,
+  libadwaita,
 
   # Test dependencies
   xvfb-run,
@@ -42,14 +43,17 @@
 
 python3.pkgs.buildPythonApplication rec {
   pname = "gajim";
-  version = "2.2.0";
+  version = "2.4.5";
 
-  src = fetchurl {
-    url = "https://gajim.org/downloads/${lib.versions.majorMinor version}/gajim-${version}.tar.gz";
-    hash = "sha256-TOZuMiE5RjaJYvNWxl2FyCp6uIO+LLWiRb7N9jc1yRk=";
+  src = fetchFromGitLab {
+    domain = "dev.gajim.org";
+    owner = "gajim";
+    repo = "gajim";
+    tag = version;
+    hash = "sha256-5daPMlC2Ejfi5UXsRLaLWwEZHHEC0szbfkqavIisoUQ=";
   };
 
-  format = "pyproject";
+  pyproject = true;
 
   buildInputs = [
     gtk4
@@ -75,6 +79,7 @@ python3.pkgs.buildPythonApplication rec {
     gettext
     wrapGAppsHook3
     gobject-introspection
+    libadwaita
   ];
 
   dontWrapGApps = true;
@@ -95,7 +100,6 @@ python3.pkgs.buildPythonApplication rec {
     with python3.pkgs;
     [
       nbxmpp
-      pygobject3
       dbus-python
       pillow
       css-parser
@@ -108,6 +112,9 @@ python3.pkgs.buildPythonApplication rec {
       qrcode
       sqlalchemy
       emoji
+      httpx
+      h2
+      truststore
     ]
     ++ lib.optionals enableE2E [
       pycrypto
@@ -140,8 +147,8 @@ python3.pkgs.buildPythonApplication rec {
     license = lib.licenses.gpl3Plus;
     maintainers = with lib.maintainers; [
       raskin
-      abbradar
       hlad
+      vbgl
     ];
     downloadPage = "http://gajim.org/download/";
     platforms = lib.platforms.linux;

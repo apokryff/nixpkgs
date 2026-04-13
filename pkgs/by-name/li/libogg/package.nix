@@ -10,7 +10,7 @@ stdenv.mkDerivation (finalAttrs: {
   version = "1.3.6";
 
   src = fetchurl {
-    url = "http://downloads.xiph.org/releases/ogg/libogg-${finalAttrs.version}.tar.xz";
+    url = "https://downloads.xiph.org/releases/ogg/libogg-${finalAttrs.version}.tar.xz";
     hash = "sha256-XIJTQo4YGEDNINQfPKFlV6nMBLrUo9BMzoSAhnf6EGE=";
   };
 
@@ -41,7 +41,6 @@ stdenv.mkDerivation (finalAttrs: {
     '';
     homepage = "https://xiph.org/ogg/";
     license = lib.licenses.bsd3;
-    maintainers = with lib.maintainers; [ ehmry ];
     platforms = lib.platforms.all;
   };
 })

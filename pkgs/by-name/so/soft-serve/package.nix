@@ -8,25 +8,25 @@
   bash,
 }:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "soft-serve";
-  version = "0.9.1";
+  version = "0.11.6";
 
   src = fetchFromGitHub {
     owner = "charmbracelet";
     repo = "soft-serve";
-    rev = "v${version}";
-    hash = "sha256-gjkq1Be+x5qZYjO3pWt+u5A2izgMfR3+nxIHTc1ck6Y=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-oWZfhB14Yjj3/BKKhowKDKX5v4RvIwjHDCSFfnI+f54=";
   };
 
-  vendorHash = "sha256-l0gsStKkfH0TQ1a935LSuFah3BBwVsMD4iSf2oDyViY=";
+  vendorHash = "sha256-nsrfohr2b6zpbhWVRfOPydCpyUZzbR3YJz5viWGUwmQ=";
 
   doCheck = false;
 
   ldflags = [
     "-s"
     "-w"
-    "-X=main.Version=${version}"
+    "-X=main.Version=${finalAttrs.version}"
   ];
 
   nativeBuildInputs = [ makeWrapper ];
@@ -48,9 +48,9 @@ buildGoModule rec {
   meta = {
     description = "Tasty, self-hosted Git server for the command line";
     homepage = "https://github.com/charmbracelet/soft-serve";
-    changelog = "https://github.com/charmbracelet/soft-serve/releases/tag/v${version}";
+    changelog = "https://github.com/charmbracelet/soft-serve/releases/tag/v${finalAttrs.version}";
     mainProgram = "soft";
     license = lib.licenses.mit;
-    maintainers = with lib.maintainers; [ penguwin ];
+    maintainers = with lib.maintainers; [ miniharinn ];
   };
-}
+})

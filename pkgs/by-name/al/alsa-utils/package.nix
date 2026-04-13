@@ -12,8 +12,9 @@
   libsamplerate,
   pciutils,
   procps,
+  tree,
   which,
-  fftw,
+  fftwFloat,
   pipewire,
   withPipewireLib ? true,
   symlinkJoin,
@@ -47,7 +48,7 @@ stdenv.mkDerivation (finalAttrs: {
     alsa-lib
     ncurses
     libsamplerate
-    fftw
+    fftwFloat
   ];
 
   configureFlags = [
@@ -64,9 +65,12 @@ stdenv.mkDerivation (finalAttrs: {
         which
         pciutils
         procps
+        tree
       ]
-    }"
-    wrapProgram $out/bin/aplay --set-default ALSA_PLUGIN_DIR ${plugin-dir}
+    }" --prefix PATH : $out/bin
+    for program in $out/bin/*; do
+        wrapProgram "$program" --set-default ALSA_PLUGIN_DIR "${plugin-dir}"
+    done
   '';
 
   postInstall = ''

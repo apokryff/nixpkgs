@@ -23,7 +23,7 @@ in
       };
 
       openFirewall = lib.mkEnableOption "" // {
-        description = "Open ports in the firewall for the Radarr web interface.";
+        description = "Open ports in the firewall for LANraragi's web interface.";
       };
 
       passwordFile = lib.mkOption {
@@ -88,7 +88,7 @@ in
         {
           redis_address => "127.0.0.1:${toString cfg.redis.port}",
           redis_password => "${
-            lib.optionalString (cfg.redis.passwordFile != null) ''$(head -n1 ${cfg.redis.passwordFile})''
+            lib.optionalString (cfg.redis.passwordFile != null) "$(head -n1 ${cfg.redis.passwordFile})"
           }",
           redis_database => "0",
           redis_database_minion => "1",

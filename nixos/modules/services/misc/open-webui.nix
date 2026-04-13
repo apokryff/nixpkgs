@@ -56,7 +56,7 @@ in
         '';
         description = ''
           Extra environment variables for Open-WebUI.
-          For more details see <https://docs.openwebui.com/getting-started/advanced-topics/env-configuration/>
+          For more details see <https://docs.openwebui.com/getting-started/env-configuration>
         '';
       };
 
@@ -96,6 +96,23 @@ in
         WEBUI_URL = "http://localhost:${toString cfg.port}";
       }
       // cfg.environment;
+
+      # backwards compatability migration
+      preStart = ''
+        if [ -d "${cfg.stateDir}/data" ] && [ -n "$(ls -A "${cfg.stateDir}/data" 2>/dev/null)" ]; then
+          exit 0
+        fi
+
+        mkdir -p "${cfg.stateDir}/data"
+
+        [ -f "${cfg.stateDir}/webui.db" ] && mv "${cfg.stateDir}/webui.db" "${cfg.stateDir}/data/"
+
+        for dir in cache uploads vector_db; do
+          [ -d "${cfg.stateDir}/$dir" ] && mv "${cfg.stateDir}/$dir" "${cfg.stateDir}/data/"
+        done
+
+        exit 0
+      '';
 
       serviceConfig = {
         ExecStart = "${lib.getExe cfg.package} serve --host \"${cfg.host}\" --port ${toString cfg.port}";

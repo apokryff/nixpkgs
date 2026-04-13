@@ -16,20 +16,20 @@
   desktop-file-utils,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "waytrogen";
-  version = "0.7.3";
+  version = "0.9.3";
 
   src = fetchFromGitHub {
     owner = "nikolaizombie1";
     repo = "waytrogen";
-    tag = version;
-    hash = "sha256-vFzOGadWR5xwhIKrKPHoAHstoeyFw4GrS5aYlpvEF5E=";
+    tag = finalAttrs.version;
+    hash = "sha256-0WBV6s6THXSg8HabnFFi+Gco+sXy7zQO21IgXykMBHc=";
   };
 
   cargoDeps = rustPlatform.fetchCargoVendor {
-    inherit pname version src;
-    hash = "sha256-k6n6aWEJ/8Dkbd68CJfJ7kbRTltCuQ4AtZ5dALFD3lU=";
+    inherit (finalAttrs) pname version src;
+    hash = "sha256-UKd/h/O9EE7gZ8B+QtFVGJEit0BIQ0OC0CG/GLYzMEo=";
   };
 
   nativeBuildInputs = [
@@ -49,7 +49,7 @@ stdenv.mkDerivation rec {
     openssl
   ];
 
-  preBuild = ''export OUT_PATH=$out'';
+  preBuild = "export OUT_PATH=$out";
 
   env = {
     OPENSSL_NO_VENDOR = 1;
@@ -67,7 +67,7 @@ stdenv.mkDerivation rec {
       in the Rust 🦀 programming language. Supports hyprpaper, swaybg, mpvpaper and swww wallpaper changers.
     '';
     homepage = "https://github.com/nikolaizombie1/waytrogen";
-    changelog = "https://github.com/nikolaizombie1/waytrogen/releases/tag/${version}";
+    changelog = "https://github.com/nikolaizombie1/waytrogen/releases/tag/${finalAttrs.version}";
     license = lib.licenses.unlicense;
     maintainers = with lib.maintainers; [
       genga898
@@ -76,4 +76,4 @@ stdenv.mkDerivation rec {
     mainProgram = "waytrogen";
     platforms = lib.platforms.linux;
   };
-}
+})

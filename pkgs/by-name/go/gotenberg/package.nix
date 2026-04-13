@@ -1,6 +1,6 @@
 {
   lib,
-  buildGoModule,
+  buildGo126Module,
   chromium,
   fetchFromGitHub,
   libreoffice,
@@ -22,21 +22,26 @@ let
   libreoffice' = "${libreoffice}/lib/libreoffice/program/soffice.bin";
   inherit (lib) getExe;
 in
-buildGoModule rec {
+buildGo126Module (finalAttrs: {
   pname = "gotenberg";
-  version = "8.21.1";
+  version = "8.30.1";
+
+  outputs = [
+    "out"
+    "hyphen"
+  ];
 
   src = fetchFromGitHub {
     owner = "gotenberg";
     repo = "gotenberg";
-    tag = "v${version}";
-    hash = "sha256-2uILOK5u+HrdjqN+ZQjGv48QxSCrzSvnF+Ae6iCKCbU=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-kK+l1v+G8G7oBR8DVsROD3Z7lymiFZrJY3K0W9G9npI=";
   };
 
-  vendorHash = "sha256-sTcP/tyrCtvgYeOnsbqRFdBC1bbMAbA978t6LOTKFio=";
+  vendorHash = "sha256-XhKf0Kucp6bGjw3UXXV86gsyaDyk5nS2acc4PgVs9yw=";
 
   postPatch = ''
-    find ./pkg -name '*_test.go' -exec sed -i -e 's#/tests#${src}#g' {} \;
+    find ./pkg -name '*_test.go' -exec sed -i -e 's#/tests#${finalAttrs.src}#g' {} \;
   '';
 
   nativeBuildInputs = [ makeBinaryWrapper ];
@@ -44,7 +49,7 @@ buildGoModule rec {
   ldflags = [
     "-s"
     "-w"
-    "-X github.com/gotenberg/gotenberg/v8/cmd.Version=${version}"
+    "-X github.com/gotenberg/gotenberg/v8/cmd.Version=${finalAttrs.version}"
   ];
 
   checkInputs = [
@@ -82,14 +87,20 @@ buildGoModule rec {
     in
     [ "-skip=^${builtins.concatStringsSep "$|^" skippedTests}$" ];
 
+  postInstall = ''
+    mkdir $hyphen
+    cp -r build/chromium-hyphen-data/*/* $hyphen/
+  '';
+
   preFixup = ''
     wrapProgram $out/bin/gotenberg \
+      --set CHROMIUM_HYPHEN_DATA_DIR_PATH "$hyphen" \
+      --set EXIFTOOL_BIN_PATH "${getExe exiftool}" \
+      --set JAVA_HOME "${jre'}" \
+      --set PDFCPU_BIN_PATH "${getExe pdfcpu}" \
       --set PDFTK_BIN_PATH "${getExe pdftk}" \
       --set QPDF_BIN_PATH "${getExe qpdf}" \
-      --set UNOCONVERTER_BIN_PATH "${getExe unoconv}" \
-      --set EXIFTOOL_BIN_PATH "${getExe exiftool}" \
-      --set PDFCPU_BIN_PATH "${getExe pdfcpu}" \
-      --set JAVA_HOME "${jre'}"
+      --set UNOCONVERTER_BIN_PATH "${getExe unoconv}"
   '';
 
   passthru.updateScript = nix-update-script { };
@@ -101,8 +112,8 @@ buildGoModule rec {
     description = "Converts numerous document formats into PDF files";
     mainProgram = "gotenberg";
     homepage = "https://gotenberg.dev";
-    changelog = "https://github.com/gotenberg/gotenberg/releases/tag/v${version}";
+    changelog = "https://github.com/gotenberg/gotenberg/releases/tag/v${finalAttrs.version}";
     license = lib.licenses.mit;
-    maintainers = with lib.maintainers; [ pyrox0 ];
+    maintainers = with lib.maintainers; [ miniharinn ];
   };
-}
+})

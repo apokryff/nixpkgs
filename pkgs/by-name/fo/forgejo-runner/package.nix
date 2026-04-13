@@ -6,6 +6,8 @@
   nixosTests,
   versionCheckHook,
   nix-update-script,
+  gitMinimal,
+  makeWrapper,
 }:
 
 let
@@ -17,9 +19,10 @@ let
     # The following tests were introduced in 9.x with the inclusion of act
     # the pkgs/by-name/ac/act/package.nix just sets doCheck = false;
 
-    # Requires running docker install
+    # Requires running Docker daemon
     "TestDocker"
     "TestJobExecutor"
+    "TestRunExec"
     "TestRunner"
     "Test_validateCmd"
 
@@ -29,29 +32,39 @@ let
     # Reaches out to different websites
     "TestFindGitRemoteURL"
     "TestGitFindRef"
-    "TestGitCloneExecutor"
+    "TestClone"
     "TestCloneIfRequired"
     "TestActionCache"
     "TestRunContext_GetGitHubContext"
+    "TestSetJobResult_SkipsBannerInChildReusableWorkflow"
 
     # These tests rely on outbound IP address
     "TestHandler"
     "TestHandler_gcCache"
+
+    # Timeouts
+    "TestRunJob_WithConnectionFromCommandOptions"
+  ]
+  ++ lib.optionals stdenv.isDarwin [
+    # Uses docker-specific options, unsupported on Darwin
+    "TestMergeJobOptions"
   ];
 in
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "forgejo-runner";
-  version = "9.0.2";
+  version = "12.8.2";
 
   src = fetchFromGitea {
     domain = "code.forgejo.org";
     owner = "forgejo";
     repo = "runner";
-    rev = "v${version}";
-    hash = "sha256-UjYi7+UAKvdz5FuElYGLfTYQD/E0vS1TJkUyPfUq7YA=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-bLW33r6BdIDt8kHJzRltlePzEfduiL5PBlVO/iZ6MYg=";
   };
 
-  vendorHash = "sha256-7R42Aa04wCba90xLTX2p6oNX58OpfDDKegqwDw3Ycbk=";
+  vendorHash = "sha256-M/x814rhG9hnl4vkHLYY2LQ4YfUqIrtM0ctrBebigrA=";
+
+  nativeBuildInputs = [ makeWrapper ];
 
   # See upstream Makefile
   # https://code.forgejo.org/forgejo/runner/src/branch/main/Makefile
@@ -63,7 +76,7 @@ buildGoModule rec {
   ldflags = [
     "-s"
     "-w"
-    "-X code.forgejo.org/forgejo/runner/v9/internal/pkg/ver.version=${src.rev}"
+    "-X code.forgejo.org/forgejo/runner/v12/internal/pkg/ver.version=${finalAttrs.src.rev}"
   ];
 
   checkFlags = [
@@ -71,35 +84,38 @@ buildGoModule rec {
   ];
 
   postInstall = ''
-    # fix up go-specific executable naming derived from package name, upstream
+    # Fix up go-specific executable naming derived from package name, upstream
     # also calls it `forgejo-runner`
     mv $out/bin/runner $out/bin/forgejo-runner
-    # provide old binary name for compatibility
+
+    # Provide backward compatbility since v12 removed bundled git
+    wrapProgram $out/bin/forgejo-runner --suffix PATH : ${lib.makeBinPath [ gitMinimal ]}
+
+    # Provide old binary name for compatibility
     ln -s $out/bin/forgejo-runner $out/bin/act_runner
   '';
 
+  nativeCheckInputs = [ gitMinimal ];
+
   doInstallCheck = true;
   nativeInstallCheckInputs = [ versionCheckHook ];
-  versionCheckProgram = "${placeholder "out"}/bin/${meta.mainProgram}";
-  versionCheckProgramArg = "--version";
+  versionCheckProgram = "${placeholder "out"}/bin/${finalAttrs.meta.mainProgram}";
 
   passthru = {
     updateScript = nix-update-script { };
     tests = lib.optionalAttrs stdenv.hostPlatform.isLinux {
-      sqlite3 = nixosTests.forgejo.sqlite3;
+      latest = nixosTests.forgejo.sqlite3;
+      lts = nixosTests.forgejo-lts.sqlite3;
     };
   };
 
-  meta = with lib; {
+  meta = {
     description = "Runner for Forgejo based on act";
     homepage = "https://code.forgejo.org/forgejo/runner";
-    changelog = "https://code.forgejo.org/forgejo/runner/releases/tag/${src.rev}";
-    license = licenses.mit;
-    maintainers = with maintainers; [
-      adamcstephens
-      emilylange
-      christoph-heiss
-    ];
+    changelog = "https://code.forgejo.org/forgejo/runner/releases/tag/${finalAttrs.src.rev}";
+    license = lib.licenses.gpl3Plus;
+    maintainers = with lib.maintainers; [ nrabulinski ];
+    teams = [ lib.teams.forgejo ];
     mainProgram = "forgejo-runner";
   };
-}
+})

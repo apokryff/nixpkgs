@@ -2,7 +2,6 @@
   lib,
   buildPythonPackage,
   cacert,
-  pythonOlder,
   fetchFromGitHub,
   setuptools,
   pytestCheckHook,
@@ -10,16 +9,14 @@
 
 buildPythonPackage rec {
   pname = "certifi";
-  version = "2025.06.15";
+  version = "2026.01.04";
   pyproject = true;
-
-  disabled = pythonOlder "3.7";
 
   src = fetchFromGitHub {
     owner = "certifi";
     repo = "python-certifi";
     rev = version;
-    hash = "sha256-ah2a+Qspll3jZ8M7CRL7zhTIt2kuRIiWeI6vTgwb3vs=";
+    hash = "sha256-JXv12im46xKabIRVZ4FMSZUbpw2k8WCcaZZLX2pFteY=";
   };
 
   patches = [
@@ -44,10 +41,10 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "certifi" ];
 
-  meta = with lib; {
+  meta = {
     homepage = "https://github.com/certifi/python-certifi";
     description = "Python package for providing Mozilla's CA Bundle";
-    license = licenses.isc;
-    maintainers = with maintainers; [ koral ];
+    license = lib.licenses.isc;
+    maintainers = with lib.maintainers; [ koral ];
   };
 }

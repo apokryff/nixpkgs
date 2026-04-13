@@ -4,7 +4,7 @@
   fetchFromGitHub,
 
   # build-system
-  pdm-backend,
+  hatchling,
 
   # dependencies
   langchain-core,
@@ -20,24 +20,26 @@
 
 buildPythonPackage rec {
   pname = "langchain-groq";
-  version = "0.3.6";
+  version = "1.1.2";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "langchain-ai";
     repo = "langchain";
     tag = "langchain-groq==${version}";
-    hash = "sha256-f0s8fBT1+uZbatWSPehKfrGYGotBFeNixCiGaAc753o=";
+    hash = "sha256-OS9i4o8UhEmRFgZEKB5owWx2hJuVBRV5XvQLCQnBi9g=";
   };
 
   sourceRoot = "${src.name}/libs/partners/groq";
 
-  build-system = [ pdm-backend ];
+  build-system = [ hatchling ];
 
   pythonRelaxDeps = [
     # Each component release requests the exact latest core.
     # That prevents us from updating individual components.
     "langchain-core"
+    # Requires groq api < 1.0.0, but 1.0.0 is backwards compatible
+    "groq"
   ];
 
   dependencies = [
@@ -52,10 +54,20 @@ buildPythonPackage rec {
 
   enabledTestPaths = [ "tests/unit_tests" ];
 
+  disabledTests = [
+    # These tests fail when langchain-core gets ahead of the package
+    "test_groq_serialization"
+    "test_serdes"
+  ];
+
   pythonImportsCheck = [ "langchain_groq" ];
 
-  passthru.updateScript = gitUpdater {
-    rev-prefix = "langchain-groq==";
+  passthru = {
+    # python updater script sets the wrong tag
+    skipBulkUpdate = true;
+    updateScript = gitUpdater {
+      rev-prefix = "langchain-groq==";
+    };
   };
 
   meta = {

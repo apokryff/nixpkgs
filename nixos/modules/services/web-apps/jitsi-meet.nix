@@ -25,7 +25,7 @@ let
       userJson = pkgs.writeText "user.json" (builtins.toJSON userCfg);
     in
     (pkgs.runCommand "${varName}.js" { } ''
-      ${pkgs.nodejs}/bin/node ${extractor} ${source} ${varName} > default.json
+      ${pkgs.lib.getExe pkgs.nodejs-slim} ${extractor} ${source} ${varName} > default.json
       (
         echo "var ${varName} = "
         ${pkgs.jq}/bin/jq -s '.[0] * .[1]' default.json ${userJson}
@@ -217,7 +217,7 @@ in
     excalidraw.port = mkOption {
       type = types.port;
       default = 3002;
-      description = ''The port which the Excalidraw backend for Jitsi should listen to.'';
+      description = "The port which the Excalidraw backend for Jitsi should listen to.";
     };
 
     secureDomain = {
@@ -225,7 +225,7 @@ in
       authentication = mkOption {
         type = types.str;
         default = "internal_hashed";
-        description = ''The authentication type to be used by jitsi'';
+        description = "The authentication type to be used by jitsi";
       };
     };
   };
@@ -307,7 +307,6 @@ in
         "speakerstats"
         "external_services"
         "conference_duration"
-        "end_conference"
         "muc_lobby_rooms"
         "muc_breakout_rooms"
         "av_moderation"
@@ -348,7 +347,9 @@ in
           ''
             muc_mapper_domain_base = "${cfg.hostName}"
 
-            cross_domain_websocket = true;
+            http_cors_override = {
+              websocket = { enabled = true }
+            }
             consider_websocket_secure = true;
 
             unlimited_jids = {
@@ -381,7 +382,6 @@ in
           conference_duration_component = "conferenceduration.${cfg.hostName}"
           end_conference_component = "endconference.${cfg.hostName}"
 
-          c2s_require_encryption = false
           lobby_muc = "lobby.${cfg.hostName}"
           breakout_rooms_muc = "breakout.${cfg.hostName}"
           room_metadata_component = "metadata.${cfg.hostName}"
@@ -528,7 +528,7 @@ in
         ProtectSystem = "strict";
         ProtectClock = true;
         ProtectHome = true;
-        ProtectProc = true;
+        ProtectProc = "noaccess";
         ProtectKernelLogs = true;
         PrivateTmp = true;
         PrivateDevices = true;
@@ -756,5 +756,5 @@ in
   };
 
   meta.doc = ./jitsi-meet.md;
-  meta.maintainers = lib.teams.jitsi.members;
+  meta.teams = [ lib.teams.jitsi ];
 }

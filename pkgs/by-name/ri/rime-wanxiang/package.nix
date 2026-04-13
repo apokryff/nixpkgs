@@ -2,54 +2,29 @@
   lib,
   fetchFromGitHub,
   stdenvNoCC,
-  librime,
-  rime-data,
   nix-update-script,
 }:
 
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "rime-wanxiang";
-  version = "10.0.10";
+  version = "15.6.1";
 
   src = fetchFromGitHub {
     owner = "amzxyz";
     repo = "rime_wanxiang";
     tag = "v" + finalAttrs.version;
-    hash = "sha256-lDjvaVkHEHhfL7iI7psaaVlUO4SNe2e49N5Nz+Lex68=";
+    hash = "sha256-h33dhVBI14JARrGIpPPy7AAXHZs4F6s5AtUm9ZafR3Y=";
   };
-
-  nativeBuildInputs = [
-    librime
-  ];
-
-  buildInputs = [
-    rime-data
-  ];
-
-  dontConfigure = true;
-
-  buildPhase = ''
-    runHook preBuild
-
-    for s in *.schema.yaml; do
-        rime_deployer --compile "$s" . ${rime-data}/share/rime-data ./build
-    done
-
-    rm build/*.txt
-
-    runHook postBuild
-  '';
 
   installPhase = ''
     runHook preInstall
 
-    dst=$out/share/rime-data
-    mkdir -p $dst
+    rm -rf README.md .git* custom LICENSE
 
-    rm -r .github custom LICENSE squirrel.yaml weasel.yaml *.md *.trime.yaml
     mv default.yaml wanxiang_suggested_default.yaml
 
-    cp -pr -t $dst *
+    mkdir -p $out/share
+    cp -r . $out/share/rime-data
 
     runHook postInstall
   '';
@@ -57,12 +32,15 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   passthru.updateScript = nix-update-script { };
 
   meta = {
-    description = "Feature-rich pinyin schema for Rime, basic edition";
+    description = "Feature-rich pinyin schema for Rime";
     longDescription = ''
-      万象拼音基础版 is a basic quanpin and shuangpin input schema for Rime based on
+      万象拼音 is a quanpin and shuangpin input schema for Rime based on
       [万象 dictionaries and grammar models](https://github.com/amzxyz/RIME-LMDG),
       supporting traditional shuangpin as well as tonal schemata such as 自然龙 and
       龙码.
+
+      This package is built from the upstream repository snapshots, and includes
+      all the auxiliary encodings.
 
       The schema requires to work the grammar model `wanxiang-lts-zh-hans.gram`.
       However, this file is

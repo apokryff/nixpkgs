@@ -48,8 +48,6 @@ let
   ) (filter (hostOpts: hostOpts.enableACME || hostOpts.useACMEHost != null) vhosts);
 
   vhostCertNames = unique (map (hostOpts: hostOpts.certName) acmeEnabledVhosts);
-  dependentCertNames = filter (cert: certs.${cert}.dnsProvider == null) vhostCertNames; # those that might depend on the HTTP server
-  independentCertNames = filter (cert: certs.${cert}.dnsProvider != null) vhostCertNames; # those that don't depend on the HTTP server
 
   mkListenInfo =
     hostOpts:
@@ -112,25 +110,20 @@ let
   }
   ++ cfg.extraModules;
 
-  loggingConf = (
-    if cfg.logFormat != "none" then
-      ''
-        ErrorLog ${cfg.logDir}/error.log
+  loggingConf = ''
+    ErrorLog ${if cfg.logFormat != "none" then "${cfg.logDir}/error.log" else "/dev/null"}
+    ${optionalString (cfg.logLevel != null) "LogLevel ${cfg.logLevel}"}
 
-        LogLevel notice
+    LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
+    LogFormat "%h %l %u %t \"%r\" %>s %b" common
+    LogFormat "%{Referer}i -> %U" referer
+    LogFormat "%{User-agent}i" agent
+    ${optionalString (
+      cfg.logFormat == "custom"
+    ) "LogFormat ${lib.strings.escapeNixString cfg.customLogFormat} custom"}
 
-        LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
-        LogFormat "%h %l %u %t \"%r\" %>s %b" common
-        LogFormat "%{Referer}i -> %U" referer
-        LogFormat "%{User-agent}i" agent
-
-        CustomLog ${cfg.logDir}/access.log ${cfg.logFormat}
-      ''
-    else
-      ''
-        ErrorLog /dev/null
-      ''
-  );
+    CustomLog ${cfg.logDir}/access.log ${cfg.logFormat}
+  '';
 
   browserHacks = ''
     <IfModule mod_setenvif.c>
@@ -231,7 +224,7 @@ let
                     RewriteEngine on
                     RewriteCond %{REQUEST_URI} !^/.well-known/acme-challenge [NC]
                     RewriteCond %{HTTPS} off
-                    RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI}
+                    RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
                 </IfModule>
               ''
             else
@@ -584,12 +577,67 @@ in
       };
 
       logFormat = mkOption {
-        type = types.str;
+        type = types.enum [
+          "combined"
+          "common"
+          "referer"
+          "agent"
+          "custom"
+          "none"
+        ];
         default = "common";
-        example = "combined";
+        example = "custom";
         description = ''
-          Log format for log files. Possible values are: combined, common, referer, agent, none.
-          See <https://httpd.apache.org/docs/2.4/logs.html> for more details.
+          Selects the access log format written to log files.
+
+          The values `combined`, `common`, `referer`, and `agent` correspond to predefined Apache HTTPD log formats.
+          Setting the value to `custom` enables the use of a user-defined format string specified via `customLogFormat`.
+          The value `none` disables access logging entirely.
+
+          Further details on Apache log formats are available at <https://httpd.apache.org/docs/2.4/logs.html>.
+        '';
+      };
+
+      customLogFormat = mkOption {
+        type = types.str;
+        default = null;
+        example = ''%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b'';
+        description = ''
+          Defines a custom Apache HTTPD access log format string.
+
+          This option is only consulted when `logFormat` is set to `custom`.
+          The value must be a valid Apache `LogFormat` specification and will be registered under the symbolic name `custom`.
+
+          See <https://httpd.apache.org/docs/2.4/logs.html#formats> for the formal definition of log format directives.
+        '';
+      };
+
+      logLevel = mkOption {
+        type =
+          with types;
+          nullOr (enum [
+            "emerg"
+            "alert"
+            "crit"
+            "error"
+            "warn"
+            "notice"
+            "info"
+            "debug"
+            "trace1"
+            "trace2"
+            "trace3"
+            "trace4"
+            "trace5"
+            "trace6"
+            "trace7"
+            "trace8"
+          ]);
+        default = "notice";
+        example = "crit";
+        description = ''
+          Controls the verbosity of the ErrorLog.
+          See <https://httpd.apache.org/docs/2.4/mod/core.html#loglevel> for more details.
         '';
       };
 
@@ -706,14 +754,14 @@ in
       };
 
       maxClients = mkOption {
-        type = types.int;
+        type = types.ints.positive;
         default = 150;
         example = 8;
         description = "Maximum number of httpd processes (prefork)";
       };
 
       maxRequestsPerChild = mkOption {
-        type = types.int;
+        type = types.ints.unsigned;
         default = 0;
         example = 500;
         description = ''
@@ -914,13 +962,14 @@ in
     systemd.services.httpd = {
       description = "Apache HTTPD";
       wantedBy = [ "multi-user.target" ];
-      wants = concatLists (map (certName: [ "acme-finished-${certName}.target" ]) vhostCertNames);
+      wants = concatLists (map (certName: [ "acme-${certName}.service" ]) vhostCertNames);
       after = [
         "network.target"
       ]
-      ++ map (certName: "acme-selfsigned-${certName}.service") vhostCertNames
-      ++ map (certName: "acme-${certName}.service") independentCertNames; # avoid loading self-signed key w/ real cert, or vice-versa
-      before = map (certName: "acme-${certName}.service") dependentCertNames;
+      # Ensure httpd runs with baseline certificates in place.
+      ++ map (certName: "acme-${certName}.service") vhostCertNames;
+      # Ensure httpd runs (with current config) before the actual ACME jobs run
+      before = map (certName: "acme-order-renew-${certName}.service") vhostCertNames;
       restartTriggers = [ cfg.configFile ];
 
       path = [
@@ -960,19 +1009,17 @@ in
 
     # postRun hooks on cert renew can't be used to restart Apache since renewal
     # runs as the unprivileged acme user. sslTargets are added to wantedBy + before
-    # which allows the acme-finished-$cert.target to signify the successful updating
+    # which allows the acme-order-renew-$cert.service to signify the successful updating
     # of certs end-to-end.
     systemd.services.httpd-config-reload =
       let
-        sslServices = map (certName: "acme-${certName}.service") vhostCertNames;
-        sslTargets = map (certName: "acme-finished-${certName}.target") vhostCertNames;
+        sslServices = map (certName: "acme-order-renew-${certName}.service") vhostCertNames;
       in
       mkIf (vhostCertNames != [ ]) {
         wantedBy = sslServices ++ [ "multi-user.target" ];
         # Before the finished targets, after the renew services.
         # This service might be needed for HTTP-01 challenges, but we only want to confirm
         # certs are updated _after_ config has been reloaded.
-        before = sslTargets;
         after = sslServices;
         restartTriggers = [ cfg.configFile ];
         # Block reloading if not all certs exist yet.

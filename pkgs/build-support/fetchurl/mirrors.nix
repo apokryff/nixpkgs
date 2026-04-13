@@ -1,9 +1,6 @@
 {
 
-  # Content-addressable Nix mirrors
-  hashedMirrors = [
-    "https://tarballs.nixos.org"
-  ];
+  hashedMirrors = throw "Use config.hashedMirrors instead of (import ./pkgs/build-support/fetchurl/mirrors.nix).hashedMirrors";
 
   # Mirrors for mirror://site/filename URIs, where "site" is
   # "sourceforge", "gnu", etc.
@@ -93,9 +90,7 @@
   gnupg = [
     "https://gnupg.org/ftp/gcrypt/"
     "https://mirrors.dotsrc.org/gcrypt/"
-    "https://ftp.heanet.ie/mirrors/ftp.gnupg.org/gcrypt/"
     "https://www.mirrorservice.org/sites/ftp.gnupg.org/gcrypt/"
-    "http://www.ring.gr.jp/pub/net/"
   ];
 
   # IBiblio (former metalab/sunsite)
@@ -117,9 +112,9 @@
     "ftp://ftp.sunet.se/mirror/imagemagick.org/ftp/" # also contains older versions removed from most mirrors
   ];
 
+  # See https://download.kde.org/ls-lR.mirrorlist
   kde = [
     "https://download.kde.org/"
-    "https://ftp.funet.fi/pub/mirrors/ftp.kde.org/pub/kde/"
   ];
 
   # kernel.org's /pub (/pub/{linux,software}) tree

@@ -1,9 +1,12 @@
 {
   lib,
   fetchFromGitHub,
+  unstableGitUpdater,
   makeWrapper,
-  nix-update-script,
-  nodePackages,
+  writeShellApplication,
+  _experimental-update-script-combinators,
+  nix,
+  serve,
   stdenv,
   xsel,
   yarn-berry_4,
@@ -13,20 +16,28 @@ let
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "dokieli";
-  version = "0-unstable-2025-08-04";
+  version = "0-unstable-2026-03-25";
 
   src = fetchFromGitHub {
     owner = "dokieli";
     repo = "dokieli";
-    rev = "64374c6b9a53b68ae7921604a1fbe231d3e4f067";
-    hash = "sha256-5baBKXmOxS0BOKNedMSbmw21rDBONZwmim9hlXn5OzQ=";
+    rev = "d684e852325b2247b831b179efed5d96c211f864";
+    hash = "sha256-Af8KsH1tqPDuOUEaHRN3ULJwGWgZc5JgFT99sGKkkec=";
   };
 
   missingHashes = ./missing-hashes.json;
   offlineCache = yarn-berry.fetchYarnBerryDeps {
     inherit (finalAttrs) src missingHashes;
-    hash = "sha256-4SK1ecjEnnaow5Z2biCPaHirpX6J/5cytQWWicPgmB0=";
+    hash = "sha256-bUXAYeTJqz11Rl7vaNPNRBTqjLdSr0FrEQBAFLd9oEs=";
   };
+
+  buildPhase = ''
+    runHook preBuild
+
+    yarn build
+
+    runHook postBuild
+  '';
 
   installPhase = ''
     runHook preInstall
@@ -39,21 +50,30 @@ stdenv.mkDerivation (finalAttrs: {
 
   nativeBuildInputs = [
     makeWrapper
+    yarn-berry
     yarn-berry.yarnBerryConfigHook
   ];
 
-  postFixup =
-    let
-      serve = lib.getExe' nodePackages.serve "serve";
-    in
-    ''
-      makeWrapper ${serve} $out/bin/dokieli \
-        --prefix PATH : ${lib.makeBinPath [ xsel ]} \
-        --chdir $out
-    '';
+  postFixup = ''
+    makeWrapper ${lib.getExe serve} $out/bin/dokieli \
+      --prefix PATH : ${lib.makeBinPath [ xsel ]} \
+      --chdir $out
+  '';
 
-  passthru.updateScript = nix-update-script {
-    extraArgs = [ "--version=branch" ];
+  passthru = {
+    updateScriptSrc = unstableGitUpdater { };
+    updateScriptDeps = writeShellApplication {
+      name = "update-dokieli-berry-deps";
+      runtimeInputs = [
+        nix
+        yarn-berry.yarn-berry-fetcher
+      ];
+      text = lib.strings.readFile ./updateDeps.sh;
+    };
+    updateScript = _experimental-update-script-combinators.sequence [
+      finalAttrs.passthru.updateScriptSrc
+      (lib.getExe finalAttrs.passthru.updateScriptDeps)
+    ];
   };
 
   meta = {

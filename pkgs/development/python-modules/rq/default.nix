@@ -9,6 +9,7 @@
 
   # dependencies
   click,
+  croniter,
   redis,
 
   # tests
@@ -19,22 +20,23 @@
   versionCheckHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "rq";
-  version = "2.4";
+  version = "2.7";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "rq";
     repo = "rq";
-    tag = "v${version}";
-    hash = "sha256-7aq9JeyM+IjlRPgh4gs1DmkF0hU5EasgTuUPPlf8960=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-332K+n3mWf+k7/QvIFJFhuDXqd1t2p8ZVv/l+Y167Bk=";
   };
 
   build-system = [ hatchling ];
 
   dependencies = [
     click
+    croniter
     redis
   ];
 
@@ -45,9 +47,15 @@ buildPythonPackage rec {
     redisTestHook
     versionCheckHook
   ];
-  versionCheckProgramArg = "--version";
+
+  preCheck = ''
+    redisTestPort=6379
+  '';
 
   __darwinAllowLocalNetworking = true;
+
+  # redisTestHook does not work on darwin-x86_64
+  doCheck = !(stdenv.hostPlatform.isDarwin && stdenv.hostPlatform.isx86_64);
 
   disabledTests = lib.optionals stdenv.hostPlatform.isDarwin [
     # PermissionError: [Errno 13] Permission denied: '/tmp/rq-tests.txt'
@@ -60,8 +68,8 @@ buildPythonPackage rec {
   meta = {
     description = "Library for creating background jobs and processing them";
     homepage = "https://github.com/nvie/rq/";
-    changelog = "https://github.com/rq/rq/releases/tag/${src.tag}";
+    changelog = "https://github.com/rq/rq/releases/tag/${finalAttrs.src.tag}";
     license = lib.licenses.bsd2;
     maintainers = with lib.maintainers; [ mrmebelman ];
   };
-}
+})

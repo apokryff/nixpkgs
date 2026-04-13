@@ -6,12 +6,12 @@
   vanilla ? false,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "pkg-config";
   version = "0.29.2";
 
   src = fetchurl {
-    url = "https://pkg-config.freedesktop.org/releases/${pname}-${version}.tar.gz";
+    url = "https://pkg-config.freedesktop.org/releases/pkg-config-${finalAttrs.version}.tar.gz";
     sha256 = "14fmwzki1rlz8bs2p810lk6jqdxsk966d8drgsjmi54cd00rrikg";
   };
 
@@ -25,9 +25,11 @@ stdenv.mkDerivation rec {
   # Process Requires.private properly, see
   # http://bugs.freedesktop.org/show_bug.cgi?id=4738, migrated to
   # https://gitlab.freedesktop.org/pkg-config/pkg-config/issues/28
-  patches =
-    lib.optional (!vanilla) ./requires-private.patch
-    ++ lib.optional stdenv.hostPlatform.isCygwin ./2.36.3-not-win32.patch;
+  patches = [
+    ./gcc-15.patch
+  ]
+  ++ lib.optional (!vanilla) ./requires-private.patch
+  ++ lib.optional stdenv.hostPlatform.isCygwin ./2.36.3-not-win32.patch;
 
   # These three tests fail due to a (desired) behavior change from our ./requires-private.patch
   postPatch =
@@ -63,7 +65,11 @@ stdenv.mkDerivation rec {
     # Silence "incompatible integer to pointer conversion passing 'gsize'" when building with Clang.
     lib.optionals stdenv.cc.isClang [ "-Wno-int-conversion" ]
     # Silence fprintf format errors when building for Windows.
-    ++ lib.optionals stdenv.hostPlatform.isWindows [ "-Wno-error=format" ]
+    ++ lib.optionals stdenv.hostPlatform.isWindows [
+      "-Wno-incompatible-pointer-types"
+      "-Wno-int-conversion"
+      "-Wno-error=format"
+    ]
   );
 
   enableParallelBuilding = true;
@@ -71,11 +77,11 @@ stdenv.mkDerivation rec {
 
   postInstall = ''rm -f "$out"/bin/*-pkg-config''; # clean the duplicate file
 
-  meta = with lib; {
+  meta = {
     description = "Tool that allows packages to find out information about other packages";
     homepage = "http://pkg-config.freedesktop.org/wiki/";
-    platforms = platforms.all;
-    license = licenses.gpl2Plus;
+    platforms = lib.platforms.all;
+    license = lib.licenses.gpl2Plus;
     mainProgram = "pkg-config";
   };
-}
+})

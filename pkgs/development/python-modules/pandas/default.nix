@@ -3,11 +3,9 @@
   stdenv,
   buildPythonPackage,
   fetchFromGitHub,
-  fetchpatch,
-  pythonOlder,
 
   # build-system
-  cython,
+  cython_3_1,
   meson-python,
   meson,
   pkg-config,
@@ -39,6 +37,7 @@
   pymysql,
   pyqt5,
   pyreadstat,
+  pyxlsb,
   qtpy,
   s3fs,
   scipy,
@@ -64,25 +63,15 @@
 let
   pandas = buildPythonPackage rec {
     pname = "pandas";
-    version = "2.2.3";
+    version = "2.3.3";
     pyproject = true;
-
-    disabled = pythonOlder "3.9";
 
     src = fetchFromGitHub {
       owner = "pandas-dev";
       repo = "pandas";
       tag = "v${version}";
-      hash = "sha256-6YUROcqOV2P1AbJF9IMBIqTt7/PSTeXDwGgE4uI9GME=";
+      hash = "sha256-jY1uM9HmJzoFk26ilbtzJnxAsQhmXS19r73JcFeFWRQ=";
     };
-
-    patches = [
-      (fetchpatch {
-        name = "musl.patch";
-        url = "https://github.com/pandas-dev/pandas/commit/1e487982ff7501f07e2bba7a7d924fb92b3d5c7f.patch";
-        hash = "sha256-F1pVce1W951Ea82Ux198e5fBFH6kDOG+EeslDTYbjio=";
-      })
-    ];
 
     # A NOTE regarding the Numpy version relaxing: Both Numpy versions 1.x &
     # 2.x are supported. However upstream wants to always build with Numpy 2,
@@ -97,25 +86,22 @@ let
     # that override globally the `numpy` attribute to point to `numpy_1`.
     postPatch = ''
       substituteInPlace pyproject.toml \
-        --replace-fail "numpy>=2.0" numpy \
-        --replace-fail "meson-python==0.13.1" "meson-python>=0.13.1" \
-        --replace-fail "meson==1.2.1" "meson>=1.2.1"
+        --replace-fail "numpy>=2.0" numpy
     '';
 
-    nativeBuildInputs = [
-      cython
+    build-system = [
+      cython_3_1
       meson-python
       meson
       numpy
       pkg-config
       versioneer
       wheel
-    ]
-    ++ versioneer.optional-dependencies.toml;
+    ];
 
     enableParallelBuilding = true;
 
-    propagatedBuildInputs = [
+    dependencies = [
       numpy
       python-dateutil
       pytz
@@ -138,7 +124,7 @@ let
           excel = [
             odfpy
             openpyxl
-            # TODO: pyxlsb
+            pyxlsb
             xlrd
             xlsxwriter
           ];
@@ -195,7 +181,7 @@ let
       pytest-xdist
       pytestCheckHook
     ]
-    ++ lib.flatten (lib.attrValues optional-dependencies)
+    ++ lib.concatAttrValues optional-dependencies
     ++ lib.optionals (stdenv.hostPlatform.isLinux) [
       # for locale executable
       glibc
@@ -258,20 +244,20 @@ let
 
     pythonImportsCheck = [ "pandas" ];
 
-    meta = with lib; {
+    meta = {
       # pandas devs no longer test i686, it's commonly broken
       # broken = stdenv.hostPlatform.isi686;
       changelog = "https://pandas.pydata.org/docs/whatsnew/index.html";
       description = "Powerful data structures for data analysis, time series, and statistics";
       downloadPage = "https://github.com/pandas-dev/pandas";
       homepage = "https://pandas.pydata.org";
-      license = licenses.bsd3;
+      license = lib.licenses.bsd3;
       longDescription = ''
         Flexible and powerful data analysis / manipulation library for
         Python, providing labeled data structures similar to R data.frame
         objects, statistical functions, and much more.
       '';
-      maintainers = with maintainers; [
+      maintainers = with lib.maintainers; [
         raskin
       ];
     };

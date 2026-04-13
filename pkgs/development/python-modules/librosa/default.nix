@@ -34,9 +34,10 @@
   resampy,
   samplerate,
   writableTmpDirAsHomeHook,
+  pythonAtLeast,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "librosa";
   version = "0.11.0";
   pyproject = true;
@@ -44,10 +45,15 @@ buildPythonPackage rec {
   src = fetchFromGitHub {
     owner = "librosa";
     repo = "librosa";
-    tag = version;
+    tag = finalAttrs.version;
     fetchSubmodules = true; # for test data
     hash = "sha256-T58J/Gi3tHzelr4enbYJi1KmO46QxE5Zlhkc0+EgvRg=";
   };
+
+  patches = [
+    # <https://github.com/librosa/librosa/pull/1977>
+    ./fix-with-numba-0.62.0.patch
+  ];
 
   build-system = [ setuptools ];
 
@@ -84,7 +90,7 @@ buildPythonPackage rec {
     samplerate
     writableTmpDirAsHomeHook
   ]
-  ++ optional-dependencies.matplotlib;
+  ++ finalAttrs.passthru.optional-dependencies.matplotlib;
 
   disabledTests = [
     # requires network access
@@ -122,13 +128,20 @@ buildPythonPackage rec {
     "test_istft_multi"
     "test_pitch_shift_multi"
     "test_time_stretch_multi"
+  ]
+  ++ lib.optionals (pythonAtLeast "3.14") [
+    # ValueError: cannot resize an array that references or is referenced
+    "test_resample_mono"
+    "test_resample_multichannel"
+    "test_resample_scale"
+    "test_resample_stereo"
   ];
 
   meta = {
     description = "Python library for audio and music analysis";
     homepage = "https://github.com/librosa/librosa";
-    changelog = "https://github.com/librosa/librosa/releases/tag/${version}";
+    changelog = "https://github.com/librosa/librosa/releases/tag/${finalAttrs.src.tag}";
     license = lib.licenses.isc;
-    maintainers = with lib.maintainers; [ GuillaumeDesforges ];
+    maintainers = with lib.maintainers; [ carlthome ];
   };
-}
+})

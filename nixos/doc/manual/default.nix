@@ -25,6 +25,7 @@ let
     escapeShellArg
     concatMapStringsSep
     sourceFilesBySuffices
+    modules
     ;
 
   common = import ./common.nix;
@@ -63,6 +64,7 @@ let
       eval = nixos-lib.evalTest {
         # Avoid evaluating a NixOS config prototype.
         config.node.type = types.deferredModule;
+        config.hostPkgs = pkgs;
         options._module.args = mkOption { internal = true; };
       };
     in
@@ -129,7 +131,16 @@ let
   '';
 
   portableServiceOptions = buildPackages.nixosOptionsDoc {
-    inherit (evalModules { modules = [ ../../modules/system/service/portable/service.nix ]; }) options;
+    inherit
+      (evalModules {
+        modules = [
+          (modules.importApply ../../../lib/services/service.nix {
+            pkgs = throw "nixos docs / portableServiceOptions: Do not reference pkgs in docs";
+          })
+        ];
+      })
+      options
+      ;
     inherit revision warningsAreErrors;
     transformOptions =
       opt:

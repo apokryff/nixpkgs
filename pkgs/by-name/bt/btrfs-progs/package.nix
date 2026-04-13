@@ -19,13 +19,13 @@
   udevCheckHook,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "btrfs-progs";
-  version = "6.15";
+  version = "6.19.1";
 
   src = fetchurl {
-    url = "mirror://kernel/linux/kernel/people/kdave/btrfs-progs/btrfs-progs-v${version}.tar.xz";
-    hash = "sha256-V9pCjdIZn9iNg+zxytBWeM54ZA735S12M76Yh872dLs=";
+    url = "mirror://kernel/linux/kernel/people/kdave/btrfs-progs/btrfs-progs-v${finalAttrs.version}.tar.xz";
+    hash = "sha256-uyfh7FTnw8C3suWW+FOnPAej1y8hvJQEIHPCTb8EV5Y=";
   };
 
   nativeBuildInputs = [
@@ -71,9 +71,20 @@ stdenv.mkDerivation rec {
   ]
   ++ lib.optionals (!udevSupport) [
     "--disable-libudev"
+  ]
+  ++ lib.optionals (stdenv.hostPlatform != stdenv.buildPlatform) [
+    "ac_cv_func_malloc_0_nonnull=yes"
+    "ac_cv_func_realloc_0_nonnull=yes"
   ];
 
   makeFlags = [ "udevruledir=$(out)/lib/udev/rules.d" ];
+
+  outputs = [
+    "out"
+    "dev"
+    "man"
+    "lib"
+  ];
 
   enableParallelBuilding = true;
 
@@ -98,10 +109,10 @@ stdenv.mkDerivation rec {
   meta = {
     description = "Utilities for the btrfs filesystem";
     homepage = "https://btrfs.readthedocs.io/en/latest/";
-    changelog = "https://github.com/kdave/btrfs-progs/raw/v${version}/CHANGES";
+    changelog = "https://github.com/kdave/btrfs-progs/raw/v${finalAttrs.version}/CHANGES";
     license = lib.licenses.gpl2Only;
     mainProgram = "btrfs";
     maintainers = with lib.maintainers; [ raskin ];
     platforms = lib.platforms.linux;
   };
-}
+})

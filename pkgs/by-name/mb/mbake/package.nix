@@ -7,16 +7,16 @@
   versionCheckHook,
 }:
 
-python3Packages.buildPythonApplication rec {
+python3Packages.buildPythonApplication (finalAttrs: {
   pname = "mbake";
-  version = "1.3.1";
+  version = "1.4.6";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "EbodShojaei";
     repo = "bake";
-    tag = "v${version}";
-    hash = "sha256-gQsie4/iUIe4g6ZH8bL33xW6CNxSg/sh429P4Xv0GjQ=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-pA72tKQ3ji2VlW+7rFGNW3yPZmBS9JHqVF0/gpUUqAk=";
   };
 
   build-system = [
@@ -40,16 +40,15 @@ python3Packages.buildPythonApplication rec {
     python3Packages.pytestCheckHook
     versionCheckHook
   ];
-  versionCheckProgramArg = "--version";
 
   pythonImportsCheck = [ "mbake" ];
 
   meta = {
     description = "Makefile formatter and linter";
     homepage = "https://github.com/EbodShojaei/bake";
-    changelog = "https://github.com/EbodShojaei/bake/blob/${src.tag}/CHANGELOG.md";
+    changelog = "https://github.com/EbodShojaei/bake/blob/${finalAttrs.src.tag}/CHANGELOG.md";
     license = lib.licenses.mit;
     mainProgram = "mbake";
     maintainers = [ lib.maintainers.amadejkastelic ];
   };
-}
+})

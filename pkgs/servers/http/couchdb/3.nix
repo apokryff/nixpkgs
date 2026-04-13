@@ -5,23 +5,20 @@
   erlang,
   icu,
   openssl,
-  spidermonkey_91,
   python3,
   nixosTests,
 }:
 
 stdenv.mkDerivation rec {
   pname = "couchdb";
-  version = "3.5.0";
+  version = "3.5.1";
 
   src = fetchurl {
     url = "mirror://apache/couchdb/source/${version}/apache-${pname}-${version}.tar.gz";
-    hash = "sha256-api5CpqYC77yw1tJlqjnGi8a5SJ1RshfBMQ2EBvfeL8=";
+    hash = "sha256-wizzHW2Ro/WqBPDK1JO6vccjITSUy15hcKUH01nFATY=";
   };
 
   postPatch = ''
-    substituteInPlace src/couch/rebar.config.script --replace '/usr/include/mozjs-91' "${spidermonkey_91.dev}/include/mozjs-91"
-    substituteInPlace configure --replace '/usr/include/''${SM_HEADERS}' "${spidermonkey_91.dev}/include/mozjs-91"
     patchShebangs bin/rebar
   ''
   + lib.optionalString stdenv.hostPlatform.isDarwin ''
@@ -37,19 +34,25 @@ stdenv.mkDerivation rec {
   buildInputs = [
     icu
     openssl
-    spidermonkey_91
     (python3.withPackages (ps: with ps; [ requests ]))
   ];
 
   dontAddPrefix = "True";
 
   configureFlags = [
-    "--spidermonkey-version=91"
+    "--js-engine=quickjs"
+    "--disable-spidermonkey"
   ];
 
   buildFlags = [
     "release"
   ];
+
+  env.NIX_CFLAGS_COMPILE = lib.concatStringsSep " " (
+    lib.optionals stdenv.cc.isClang [
+      "-Wno-error=implicit-function-declaration"
+    ]
+  );
 
   installPhase = ''
     runHook preInstall
@@ -62,11 +65,11 @@ stdenv.mkDerivation rec {
     inherit (nixosTests) couchdb;
   };
 
-  meta = with lib; {
+  meta = {
     description = "Database that uses JSON for documents, JavaScript for MapReduce queries, and regular HTTP for an API";
     homepage = "https://couchdb.apache.org";
-    license = licenses.asl20;
-    platforms = platforms.all;
-    maintainers = with maintainers; [ lostnet ];
+    license = lib.licenses.asl20;
+    platforms = lib.platforms.all;
+    maintainers = [ ];
   };
 }

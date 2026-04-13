@@ -12,14 +12,14 @@
 
 buildPythonPackage rec {
   pname = "pyblu";
-  version = "2.0.4";
+  version = "2.0.6";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "LouisChrist";
     repo = "pyblu";
     tag = "v${version}";
-    hash = "sha256-nzTqakEMl9gywIQpC9OR0xiqZzawU5RxOx3NQT+CiFc=";
+    hash = "sha256-qLB9o40tRYgmbYJEEx8r3SodH1hB8MM4yLXbdKIs/xA=";
   };
 
   pythonRelaxDeps = [ "aiohttp" ];
@@ -40,7 +40,7 @@ buildPythonPackage rec {
   ];
 
   meta = {
-    changelog = "https://github.com/LouisChrist/pyblu/releases/tag/v${version}";
+    changelog = "https://github.com/LouisChrist/pyblu/releases/tag/${src.tag}";
     description = "BluOS API client";
     homepage = "https://github.com/LouisChrist/pyblu";
     license = lib.licenses.mit;

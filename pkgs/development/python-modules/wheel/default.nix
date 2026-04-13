@@ -14,7 +14,7 @@ buildPythonPackage rec {
     owner = "pypa";
     repo = "wheel";
     tag = version;
-    hash = "sha256-tgueGEWByS5owdA5rhXGn3qh1Vtf0HGYC6+BHfrnGAs=";
+    hash = "sha256-iyGfGr3pLVZSEIHetjsPbIIXkuXrmIPiSqqOw31l9Qw=";
   };
 
   nativeBuildInputs = [ flit-core ];
@@ -24,7 +24,7 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "wheel" ];
 
-  meta = with lib; {
+  meta = {
     homepage = "https://github.com/pypa/wheel";
     description = "Built-package format for Python";
     mainProgram = "wheel";
@@ -40,7 +40,7 @@ buildPythonPackage rec {
       It should be noted that wheel is not intended to be used as a library,
       and as such there is no stable, public API.
     '';
-    license = with licenses; [ mit ];
-    maintainers = with maintainers; [ siriobalmelli ];
+    license = with lib.licenses; [ mit ];
+    maintainers = with lib.maintainers; [ siriobalmelli ];
   };
 }

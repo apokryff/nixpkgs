@@ -8,6 +8,13 @@
 with lib;
 let
   cfg = config.services.prosody;
+  communityModulesToEnable =
+    let
+      componentSpecificModules = [ "muc_notifications" ];
+    in
+    lib.concatMap (
+      mod: lib.optional (!(lib.elem mod componentSpecificModules)) "${toLua mod};"
+    ) cfg.package.communityModules;
 
   sslOpts = _: {
     options = {
@@ -369,6 +376,11 @@ let
           kick other. Useful in jitsi-meet to kick ghosts.
         '';
       };
+      moderation = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Allow rooms to be moderated";
+      };
 
       # Extra parameters. Defaulting to prosody default values.
       # Adding them explicitly to make them visible from the options
@@ -447,6 +459,11 @@ let
             To avoid an additional DNS record and certificate, you may set this option to your primary domain (e.g. "example.com")
             or use a reverse proxy to handle the HTTP for that domain.
           '';
+        };
+        http_external_url = mkOption {
+          type = types.nullOr types.str;
+          default = null;
+          description = "External URL in case Prosody sits behind a reverse proxy.";
         };
         size_limit = mkOption {
           type = types.int;
@@ -536,12 +553,12 @@ let
         ${lib.concatStringsSep "\n  " (
           lib.mapAttrsToList (name: val: optionalString val "${toLua name};") cfg.modules
         )}
-        ${lib.concatStringsSep "\n" (map (x: "${toLua x};") cfg.package.communityModules)}
+        ${lib.concatStringsSep "\n" communityModulesToEnable}
         ${lib.concatStringsSep "\n" (map (x: "${toLua x};") cfg.extraModules)}
       };
 
       disco_items = {
-      ${lib.concatStringsSep "\n" (builtins.map (x: ''{ "${x.url}", "${x.description}"};'') discoItems)}
+      ${lib.concatStringsSep "\n" (map (x: ''{ "${x.url}", "${x.description}"};'') discoItems)}
       };
 
       allow_registration = ${toLua cfg.allowRegistration}
@@ -567,7 +584,7 @@ let
 
       ${lib.concatMapStrings (muc: ''
         Component ${toLua muc.domain} "muc"
-            modules_enabled = {${optionalString cfg.modules.mam ''"muc_mam",''}${optionalString muc.allowners_muc ''"muc_allowners",''} }
+            modules_enabled = {${optionalString cfg.modules.mam ''"muc_mam",''}${optionalString muc.allowners_muc ''"muc_allowners",''}${optionalString muc.moderation ''"muc_moderation",''}${optionalString (lib.elem "muc_notifications" cfg.package.communityModules) ''"muc_notifications",''} }
             name = ${toLua muc.name}
             restrict_room_creation = ${toLua muc.restrictRoomCreation}
             max_history_messages = ${toLua muc.maxHistoryMessages}
@@ -591,7 +608,17 @@ let
         ${lib.optionalString (cfg.httpFileShare.http_host != null) ''
           http_host = "${cfg.httpFileShare.http_host}"
         ''}
-        ${settingsToLua "  http_file_share_" (cfg.httpFileShare // { domain = null; })}
+        ${lib.optionalString (cfg.httpFileShare.http_external_url != null) ''
+          http_external_url = "${cfg.httpFileShare.http_external_url}"
+        ''}
+        ${settingsToLua "  http_file_share_" (
+          cfg.httpFileShare
+          // {
+            domain = null;
+            http_host = null;
+            http_external_url = null;
+          }
+        )}
       ''}
 
       ${lib.concatStringsSep "\n" (
@@ -703,7 +730,7 @@ in
 
       # HTTP server-related options
       httpPorts = mkOption {
-        type = types.listOf types.int;
+        type = types.listOf types.port;
         description = "Listening HTTP ports list for this service.";
         default = [ 5280 ];
       };
@@ -718,7 +745,7 @@ in
       };
 
       httpsPorts = mkOption {
-        type = types.listOf types.int;
+        type = types.listOf types.port;
         description = "Listening HTTPS ports list for this service.";
         default = [ 5281 ];
       };
@@ -758,7 +785,7 @@ in
           Force certificate authentication for server-to-server connections?
           This provides ideal security, but requires servers you communicate
           with to support encryption AND present valid, trusted certificates.
-          For more information see https://prosody.im/doc/s2s#security
+          For more information see <https://prosody.im/doc/s2s#security>
         '';
       };
 
@@ -866,6 +893,7 @@ in
           "internal_hashed"
           "cyrus"
           "anonymous"
+          "ldap"
         ];
         default = "internal_hashed";
         example = "internal_plain";
@@ -875,7 +903,11 @@ in
       extraConfig = mkOption {
         type = types.lines;
         default = "";
-        description = "Additional prosody configuration";
+        description = ''
+          Additional prosody configuration
+
+          The generated file is processed by `envsubst` to allow secrets to be passed securely via environment variables.
+        '';
       };
 
       log = mkOption {
@@ -969,13 +1001,19 @@ in
       wants = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];
       restartTriggers = [ config.environment.etc."prosody/prosody.cfg.lua".source ];
+      preStart = ''
+        ${pkgs.envsubst}/bin/envsubst -i ${
+          config.environment.etc."prosody/prosody.cfg.lua".source
+        } -o /run/prosody/prosody.cfg.lua
+      '';
       serviceConfig = mkMerge [
         {
           User = cfg.user;
           Group = cfg.group;
           Type = "simple";
-          RuntimeDirectory = [ "prosody" ];
+          RuntimeDirectory = "prosody";
           PIDFile = "/run/prosody/prosody.pid";
+          Environment = "PROSODY_CONFIG=/run/prosody/prosody.cfg.lua";
           ExecStart = "${lib.getExe cfg.package} -F";
           ExecReload = "${pkgs.coreutils}/bin/kill -HUP $MAINPID";
           Restart = "on-abnormal";

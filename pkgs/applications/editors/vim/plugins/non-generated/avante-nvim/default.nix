@@ -12,18 +12,18 @@
   pkgs,
 }:
 let
-  version = "0.0.27-unstable-2025-08-06";
+  version = "0.0.27-unstable-2026-03-11";
   src = fetchFromGitHub {
     owner = "yetone";
     repo = "avante.nvim";
-    rev = "2fc63d4128d2dc2fef0913c7480b4586959ebe4e";
-    hash = "sha256-hHa300Ldszsnp6AuYVJwOFc5FfuRTd3phyM6/qBUIQo=";
+    rev = "9a7793461549939f1d52b2b309a1aa44680170c8";
+    hash = "sha256-EEkAoufj29P46RIUrRNG0xJL9Wu4X7LZCS1fer4/nZQ=";
   };
   avante-nvim-lib = rustPlatform.buildRustPackage {
     pname = "avante-nvim-lib";
     inherit version src;
 
-    cargoHash = "sha256-8mBpzndz34RrmhJYezd4hLrJyhVL4S4IHK3plaue1k8=";
+    cargoHash = "sha256-pTWCT2s820mjnfTscFnoSKC37RE7DAPKxP71QuM+JXQ=";
 
     nativeBuildInputs = [
       pkg-config
@@ -36,6 +36,9 @@ let
     ];
 
     buildFeatures = [ "luajit" ];
+
+    # Allow undefined symbols on Darwin - they will be provided by Neovim's LuaJIT runtime
+    env.RUSTFLAGS = lib.optionalString stdenv.hostPlatform.isDarwin "-C link-arg=-undefined -C link-arg=dynamic_lookup";
 
     checkFlags = [
       # Disabled because they access the network.
@@ -68,6 +71,10 @@ vimUtils.buildVimPlugin {
       ln -s ${avante-nvim-lib}/lib/libavante_templates${ext} $out/build/avante_templates${ext}
       ln -s ${avante-nvim-lib}/lib/libavante_tokenizers${ext} $out/build/avante_tokenizers${ext}
       ln -s ${avante-nvim-lib}/lib/libavante_html2md${ext} $out/build/avante_html2md${ext}
+
+      # Fixes PKCE auth flows not finding libcrypto
+      substituteInPlace "$out/lua/avante/auth/pkce.lua" \
+        --replace-fail 'pcall(ffi.load, "crypto")' 'pcall(ffi.load, "${lib.getLib openssl}/lib/libcrypto${ext}")'
     '';
 
   passthru = {

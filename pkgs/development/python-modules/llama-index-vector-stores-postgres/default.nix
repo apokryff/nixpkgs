@@ -9,15 +9,15 @@
   psycopg2,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "llama-index-vector-stores-postgres";
-  version = "0.5.5";
+  version = "0.8.1";
   pyproject = true;
 
   src = fetchPypi {
     pname = "llama_index_vector_stores_postgres";
-    inherit version;
-    hash = "sha256-R0dJXw6msPwO7kjsLLXyxSsmmAC64yviJZzb8YUbrlQ=";
+    inherit (finalAttrs) version;
+    hash = "sha256-4/cvFvCod2thC0RiW1/KtVpZd84vpafTsWIwahDZtOg=";
   };
 
   pythonRemoveDeps = [ "psycopg2-binary" ];
@@ -41,4 +41,4 @@ buildPythonPackage rec {
     license = lib.licenses.mit;
     maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

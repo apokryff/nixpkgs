@@ -4,20 +4,25 @@
   buildGoModule,
   fetchFromGitHub,
   pkg-config,
-  xorg,
+  libxxf86vm,
+  libxrandr,
+  libxi,
+  libxinerama,
+  libxcursor,
+  libx11,
   libGL,
   nix-update-script,
 }:
 
 buildGoModule (finalAttrs: {
   pname = "krillinai";
-  version = "1.3.1";
+  version = "1.4.0";
 
   src = fetchFromGitHub {
     owner = "krillinai";
     repo = "KlicStudio";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-LLVm5L8usGoMBbeU/eQMNv/+WMQcdyiOQmj3NM/D9TU=";
+    hash = "sha256-CMeF24BCJ+wbiXCl0iJm0acNoggVxeOu3Q/cXJY8aQo=";
   };
 
   vendorHash = "sha256-bAKLNpt0K06egScyn7ImHV0csDsMQGUm92kU1PVQK+I=";
@@ -25,12 +30,12 @@ buildGoModule (finalAttrs: {
   nativeBuildInputs = [ pkg-config ];
 
   buildInputs = lib.optionals stdenv.hostPlatform.isLinux [
-    xorg.libXinerama
-    xorg.libXxf86vm
-    xorg.libXcursor
-    xorg.libXrandr
-    xorg.libX11
-    xorg.libXi
+    libxinerama
+    libxxf86vm
+    libxcursor
+    libxrandr
+    libx11
+    libxi
     libGL
   ];
 
@@ -50,6 +55,6 @@ buildGoModule (finalAttrs: {
     changelog = "https://github.com/krillinai/KlicStudio/releases/tag/v${finalAttrs.version}";
     mainProgram = "krillinai-desktop";
     license = lib.licenses.gpl3Plus;
-    maintainers = with lib.maintainers; [ ];
+    maintainers = [ ];
   };
 })

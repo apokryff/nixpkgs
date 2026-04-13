@@ -4,7 +4,7 @@
   fetchurl,
   asar,
   dpkg,
-  electron_36,
+  electron_41,
   makeWrapper,
   nixosTests,
   undmg,
@@ -13,7 +13,7 @@
 let
   inherit (stdenv.hostPlatform) system;
 
-  electron = electron_36;
+  electron = electron_41;
 
   sources = import ./sources.nix;
 
@@ -62,6 +62,11 @@ let
 
         nativeBuildInputs = [ undmg ];
 
+        sourceRoot = "Breitbandmessung.app";
+
+        dontFixup = true;
+        dontStrip = true;
+
         installPhase = ''
           runHook preInstall
           mkdir -p $out/Applications/Breitbandmessung.app
@@ -84,12 +89,12 @@ stdenv.mkDerivation (
     passthru.tests = { inherit (nixosTests) breitbandmessung; };
     passthru.updateScript = ./update.sh;
 
-    meta = with lib; {
+    meta = {
       description = "Broadband internet speed test app from the german Bundesnetzagentur";
       homepage = "https://www.breitbandmessung.de";
-      license = licenses.unfree;
-      sourceProvenance = with sourceTypes; [ binaryNativeCode ];
-      maintainers = with maintainers; [ b4dm4n ];
+      license = lib.licenses.unfree;
+      sourceProvenance = with lib.sourceTypes; [ binaryNativeCode ];
+      maintainers = with lib.maintainers; [ b4dm4n ];
       platforms = [
         "x86_64-linux"
         "x86_64-darwin"

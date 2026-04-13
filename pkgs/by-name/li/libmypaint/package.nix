@@ -12,7 +12,7 @@
   autoreconfHook,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "libmypaint";
   version = "1.6.1";
 
@@ -24,7 +24,7 @@ stdenv.mkDerivation rec {
   src = fetchFromGitHub {
     owner = "mypaint";
     repo = "libmypaint";
-    rev = "v${version}";
+    rev = "v${finalAttrs.version}";
     sha256 = "1ppgpmnhph9h8ayx9776f79a0bxbdszfw9c6bw7c3ffy2yk40178";
   };
 
@@ -56,13 +56,21 @@ stdenv.mkDerivation rec {
 
   doCheck = true;
 
-  preConfigure = "./autogen.sh";
+  # don't rely on rigid autotools versions, instead preload whatever is in $PATH in the build environment.
+  # libmypaint 1.6.1 only officially supports autotools up to 1.16,
+  # 2.0.0 alphas support up to autotools 1.17.
+  # However, we are now on autotools 1.18, so this would otherwise break.
+  preConfigure = ''
+    export AUTOMAKE=automake
+    export ACLOCAL=aclocal
+    ./autogen.sh
+  '';
 
-  meta = with lib; {
+  meta = {
     homepage = "http://mypaint.org/";
     description = "Library for making brushstrokes which is used by MyPaint and other projects";
-    license = licenses.isc;
-    maintainers = with maintainers; [ jtojnar ];
-    platforms = platforms.unix;
+    license = lib.licenses.isc;
+    maintainers = with lib.maintainers; [ jtojnar ];
+    platforms = lib.platforms.unix;
   };
-}
+})

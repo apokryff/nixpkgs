@@ -1,57 +1,65 @@
 {
-  lib,
   buildPythonPackage,
   fetchFromGitHub,
+  lib,
   poetry-core,
-  python-dateutil,
-  typing-extensions,
-  websockets,
   aiohttp,
-  pytestCheckHook,
+  websockets,
+  typing-extensions,
+  pydantic,
+  pytest-asyncio,
+  pytest-cov-stub,
   python-dotenv,
+  pytestCheckHook,
+  pythonRelaxDepsHook,
 }:
 
 buildPythonPackage rec {
-  pname = "realtime-py";
-  version = "2.5.2";
+  pname = "realtime";
+  version = "2.28.3";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "supabase";
-    repo = "realtime-py";
-    rev = "v${version}";
-    hash = "sha256-NFxWcnt/zpgDehacqK7QlXhmjrh6JoA6xh+sFjD/tt0=";
+    repo = "supabase-py";
+    tag = "v${version}";
+    hash = "sha256-Ra7Ig9IMWouMIadx6mg/pe8GlgLCavR6OsPjqgySTCw=";
   };
 
+  sourceRoot = "${src.name}/src/realtime";
+
+  build-system = [ poetry-core ];
+
   dependencies = [
-    python-dateutil
-    typing-extensions
     websockets
+    typing-extensions
+    pydantic
+  ];
+
+  nativeBuildInputs = [ pythonRelaxDepsHook ];
+
+  pythonRelaxDeps = [ "websockets" ];
+
+  nativeCheckInputs = [
     aiohttp
-  ];
-
-  pythonRelaxDeps = [
-    "websockets"
-    "aiohttp"
-    "typing-extensions"
-  ];
-
-  # Can't run all the tests due to infinite loop in pytest-asyncio
-  nativeBuildInputs = [
     pytestCheckHook
+    pytest-cov-stub
     python-dotenv
+    pytest-asyncio
   ];
 
   pythonImportsCheck = [ "realtime" ];
 
-  build-system = [ poetry-core ];
-
-  doCheck = false;
+  disabledTestPaths = [
+    "tests/test_connection.py"
+    "tests/test_presence.py"
+  ];
 
   meta = {
-    homepage = "https://github.com/supabase/realtime-py";
-    license = lib.licenses.mit;
-    description = "Python Realtime Client for Supabase";
+    description = "Client library for Supabase Functions";
+    homepage = "https://github.com/supabase/supabase-py";
+    changelog = "https://github.com/supabase/supabase-py/blob/v${src.tag}/CHANGELOG.md";
     maintainers = with lib.maintainers; [ siegema ];
+    license = lib.licenses.mit;
   };
 }

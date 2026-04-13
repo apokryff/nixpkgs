@@ -20,12 +20,14 @@ let
     head
     id
     imap1
+    init
     isAttrs
     isBool
     isFunction
     oldestSupportedReleaseIsAtLeast
     isList
     isString
+    last
     length
     mapAttrs
     mapAttrsToList
@@ -34,12 +36,16 @@ let
     optional
     optionalAttrs
     optionalString
+    pipe
     recursiveUpdate
+    remove
     reverseList
     sort
+    sortOn
     seq
     setAttrByPath
     substring
+    take
     throwIfNot
     trace
     typeOf
@@ -60,6 +66,8 @@ let
     ;
   inherit (lib.strings)
     isConvertibleWithToString
+    levenshtein
+    levenshteinAtMost
     ;
 
   showDeclPrefix =
@@ -304,8 +312,41 @@ let
                   addErrorContext
                     "while evaluating the error message for definitions for `${optText}', which is an option that does not exist"
                     (addErrorContext "while evaluating a definition from `${firstDef.file}'" (showDefs [ firstDef ]));
+
+                # absInvalidOptionParent is absolute; other variables are relative to the submodule prefix
+                absInvalidOptionParent = init (prefix ++ firstDef.prefix);
+                invalidOptionParent = init firstDef.prefix;
+                siblingOptionNames = attrNames (attrByPath invalidOptionParent { } options);
+                candidateNames =
+                  if invalidOptionParent == [ ] then remove "_module" siblingOptionNames else siblingOptionNames;
+                invalidOptionName = last firstDef.prefix;
+                # For small option sets, check all; for large sets, only check distance ≤ 2
+                suggestions =
+                  if length candidateNames < 100 then
+                    pipe candidateNames [
+                      (sortOn (levenshtein invalidOptionName))
+                      (take 3)
+                    ]
+                  else
+                    pipe candidateNames [
+                      # levenshteinAtMost is only fast for distance ≤ 2
+                      (filter (levenshteinAtMost 2 invalidOptionName))
+                      (sortOn (levenshtein invalidOptionName))
+                      (take 3)
+                    ];
+                suggestion =
+                  if suggestions == [ ] then
+                    ""
+                  else if length suggestions == 1 then
+                    "\n\nDid you mean `${showOption (absInvalidOptionParent ++ [ (head suggestions) ])}'?"
+                  else
+                    "\n\nDid you mean ${
+                      concatStringsSep ", " (
+                        map (s: "`${showOption (absInvalidOptionParent ++ [ s ])}'") (init suggestions)
+                      )
+                    } or `${showOption (absInvalidOptionParent ++ [ (last suggestions) ])}'?";
               in
-              "The option `${optText}' does not exist. Definition values:${defText}";
+              "The option `${optText}' does not exist. Definition values:${defText}${suggestion}";
           in
           if
             attrNames options == [ "_module" ]
@@ -1121,16 +1162,43 @@ let
       files = map (def: def.file) res.defsFinal;
       definitionsWithLocations = res.defsFinal;
       inherit (res) isDefined;
+      inherit (res.checkedAndMerged) valueMeta;
       # This allows options to be correctly displayed using `${options.path.to.it}`
       __toString = _: showOption loc;
     };
+
+  # Check that a type with v2 merge has a coherent check attribute.
+  # Throws an error if the type uses an ad-hoc `type // { check }` override.
+  # Returns the last argument like `seq`, allowing usage: checkV2MergeCoherence loc type expr
+  checkV2MergeCoherence =
+    loc: type: result:
+    if type.check.isV2MergeCoherent or false then
+      result
+    else
+      throw ''
+        The option `${showOption loc}' has a type `${type.description}' that uses
+        an ad-hoc `type // { check = ...; }' override, which is incompatible with
+        the v2 merge mechanism.
+
+        Please use `lib.types.addCheck` instead of `type // { check }' to add
+        custom validation. For example:
+
+          lib.types.addCheck baseType (value: /* your check */)
+
+        instead of:
+
+          baseType // { check = value: /* your check */; }
+
+        Alternatively, this message may also occur as false positive when mixing Nixpkgs
+        versions, if one Nixpkgs is between 83fed2e6..58696117 (Aug 28 - Oct 28 2025)
+      '';
 
   # Merge definitions of a value of a given type.
   mergeDefinitions = loc: type: defs: rec {
     defsFinal' =
       let
         # Process mkMerge and mkIf properties.
-        defs' = concatMap (
+        defsNormalized = concatMap (
           m:
           map (
             value:
@@ -1145,37 +1213,86 @@ let
         ) defs;
 
         # Process mkOverride properties.
-        defs'' = filterOverrides' defs';
+        defsFiltered = filterOverrides' defsNormalized;
 
         # Sort mkOrder properties.
-        defs''' =
+        defsSorted =
           # Avoid sorting if we don't have to.
-          if any (def: def.value._type or "" == "order") defs''.values then
-            sortProperties defs''.values
+          if any (def: def.value._type or "" == "order") defsFiltered.values then
+            sortProperties defsFiltered.values
           else
-            defs''.values;
+            defsFiltered.values;
       in
       {
-        values = defs''';
-        inherit (defs'') highestPrio;
+        values = defsSorted;
+        inherit (defsFiltered) highestPrio;
       };
     defsFinal = defsFinal'.values;
 
     # Type-check the remaining definitions, and merge them. Or throw if no definitions.
     mergedValue =
       if isDefined then
-        if all (def: type.check def.value) defsFinal then
+        if type.merge ? v2 then
+          # check and merge share the same closure
+          # .headError is either not-present, null, or a string describing the error
+          if checkedAndMerged.headError or null != null then
+            throw "A definition for option `${showOption loc}' is not of type `${type.description}'. TypeError: ${checkedAndMerged.headError.message}"
+          else
+            checkedAndMerged.value
+        else if all (def: type.check def.value) defsFinal then
           type.merge loc defsFinal
         else
           let
             allInvalid = filter (def: !type.check def.value) defsFinal;
           in
           throw "A definition for option `${showOption loc}' is not of type `${type.description}'. Definition values:${showDefs allInvalid}"
+      else if type.emptyValue ? value then
+        type.emptyValue.value
       else
         # (nixos-option detects this specific error message and gives it special
         # handling.  If changed here, please change it there too.)
         throw
           "The option `${showOption loc}' was accessed but has no value defined. Try setting the option.";
+
+    checkedAndMerged =
+      (
+        # This function (which is immediately applied) checks that type.merge
+        # returns the proper attrset.
+        # Once use of the merge.v2 feature has propagated, consider removing this
+        # for an estimated one thousandth performance improvement (NixOS by nr.thunks).
+        {
+          headError,
+          value,
+          valueMeta,
+        }@args:
+        args
+      )
+        (
+          if type.merge ? v2 then
+            let
+              # Check for v2 merge coherence
+              r = checkV2MergeCoherence loc type (
+                type.merge.v2 {
+                  inherit loc;
+                  defs = defsFinal;
+                }
+              );
+            in
+            r
+            // {
+              valueMeta = r.valueMeta // {
+                _internal = {
+                  inherit type;
+                };
+              };
+            }
+          else
+            {
+              headError = null;
+              value = mergedValue;
+              valueMeta = { };
+            }
+        );
 
     isDefined = defsFinal != [ ];
 
@@ -1205,13 +1322,24 @@ let
     : 1\. Function argument
   */
   pushDownProperties =
+    let
+      mapAttrsIfAttrs =
+        f: val:
+        if isAttrs val then
+          mapAttrs f val
+        else
+          # This does not actually work, since arriving here means we have e.g.
+          # (lib.mkIf cond nonAttrs), while an attrset is expected. However,
+          # avoiding the mapAttrs call here gives better errors later.
+          val;
+    in
     cfg:
     if cfg._type or "" == "merge" then
       concatMap pushDownProperties cfg.contents
     else if cfg._type or "" == "if" then
-      map (mapAttrs (n: v: mkIf cfg.condition v)) (pushDownProperties cfg.content)
+      map (mapAttrsIfAttrs (n: v: mkIf cfg.condition v)) (pushDownProperties cfg.content)
     else if cfg._type or "" == "override" then
-      map (mapAttrs (n: v: mkOverride cfg.priority v)) (pushDownProperties cfg.content)
+      map (mapAttrsIfAttrs (n: v: mkOverride cfg.priority v)) (pushDownProperties cfg.content)
     # FIXME: handle mkOrder?
     else
       [ cfg ];
@@ -1345,7 +1473,7 @@ let
     # Type
 
     ```
-    option -> attrsOf { highestPrio, value }
+    mergeAttrDefinitionsWithPrio :: Option -> { [String] :: { highestPrio :: Int; value :: Any; } }
     ```
   */
   mergeAttrDefinitionsWithPrio =
@@ -1407,7 +1535,7 @@ let
   };
 
   /**
-    Return a definition with file location information.
+    Returns a definition with file location information.
   */
   mkDefinition = args@{ file, value, ... }: args // { _type = "definition"; };
 
@@ -1422,11 +1550,6 @@ let
   mkImageMediaOverride = mkOverride 60; # image media profiles can be derived by inclusion into host config, hence needing to override host config, but do allow user to mkForce
   mkForce = mkOverride 50;
   mkVMOverride = mkOverride 10; # used by ‘nixos-rebuild build-vm’
-
-  defaultPriority =
-    warnIf (oldestSupportedReleaseIsAtLeast 2305)
-      "lib.modules.defaultPriority is deprecated, please use lib.modules.defaultOverridePriority instead."
-      defaultOverridePriority;
 
   mkFixStrictness = warn "lib.mkFixStrictness has no effect and will be removed. It returns its argument unmodified, so you can just remove any calls." id;
 
@@ -1459,7 +1582,7 @@ let
   # mkDefault properties of the previous option.
   #
   mkAliasDefinitions = mkAliasAndWrapDefinitions id;
-  mkAliasAndWrapDefinitions = wrap: option: mkAliasIfDef option (wrap (mkMerge option.definitions));
+  mkAliasAndWrapDefinitions = wrap: option: mkIf option.isDefined (wrap (mkMerge option.definitions));
 
   # Similar to mkAliasAndWrapDefinitions but copies over the priority from the
   # option as well.
@@ -1471,9 +1594,11 @@ let
       prio = option.highestPrio or defaultOverridePriority;
       defsWithPrio = map (mkOverride prio) option.definitions;
     in
-    mkAliasIfDef option (wrap (mkMerge defsWithPrio));
+    mkIf option.isDefined (wrap (mkMerge defsWithPrio));
 
-  mkAliasIfDef = option: mkIf (isOption option && option.isDefined);
+  mkAliasIfDef =
+    lib.warn "Usage of 'mkAliasIfDef' has been deprecated. Use 'mkIf option.isDefined' instead."
+      (option: mkIf option.isDefined);
 
   /**
     Compatibility.
@@ -1496,7 +1621,7 @@ let
     };
 
   /**
-    Return a module that causes a warning to be shown if the
+    Returns a module that causes a warning to be shown if the
     specified option is defined. For example,
 
       mkRemovedOptionModule [ "boot" "loader" "grub" "bootDevice" ] "<replacement instructions>"
@@ -1544,7 +1669,7 @@ let
     };
 
   /**
-    Return a module that causes a warning to be shown if the
+    Returns a module that causes a warning to be shown if the
     specified "from" option is defined; the defined value is however
     forwarded to the "to" option. This can be used to rename options
     while providing backward compatibility. For example,
@@ -1586,13 +1711,11 @@ let
         New option path as list of strings.
       */
       to,
-
       /**
         Release number of the first release that contains the rename, ignoring backports.
         Set it to the upcoming release, matching the nixpkgs/.version file.
       */
       sinceRelease,
-
     }:
     doRename {
       inherit from to;
@@ -1602,7 +1725,7 @@ let
     };
 
   /**
-    Return a module that causes a warning to be shown if any of the "from"
+    Returns a module that causes a warning to be shown if any of the "from"
     option is defined; the defined values can be used in the "mergeFn" to set
     the "to" value.
     This function can be used to merge multiple options into one that has a
@@ -1681,7 +1804,7 @@ let
 
   /**
     Single "from" version of mkMergedOptionModule.
-    Return a module that causes a warning to be shown if the "from" option is
+    Returns a module that causes a warning to be shown if the "from" option is
     defined; the defined value can be used in the "mergeFn" to set the "to"
     value.
     This function can be used to change an option into another that has a
@@ -1744,11 +1867,10 @@ let
     };
 
   /**
-    Transitional version of mkAliasOptionModule that uses MD docs.
-
-    This function is no longer necessary and merely an alias of `mkAliasOptionModule`.
+    Deprecated alias of mkAliasOptionModule that uses MD docs.
+    This function is no longer necessary will be removed in 26.05`.
   */
-  mkAliasOptionModuleMD = mkAliasOptionModule;
+  mkAliasOptionModuleMD = lib.warn "mkAliasOptionModuleMD is deprecated and will be removed in 26.05; please use mkAliasOptionModule." mkAliasOptionModule;
 
   /**
     mkDerivedConfig : Option a -> (a -> Definition b) -> Definition b
@@ -1779,7 +1901,7 @@ let
   mkDerivedConfig = opt: f: mkOverride (opt.highestPrio or defaultOverridePriority) (f opt.value);
 
   /**
-    Return a module that help declares an option that has been renamed.
+    Returns a module that help declares an option that has been renamed.
     When a value is defined for the old option, it is forwarded to the `to` option.
   */
   doRename =
@@ -2120,7 +2242,6 @@ private
   inherit
     defaultOrderPriority
     defaultOverridePriority
-    defaultPriority
     doRename
     evalModules
     evalOptionValue # for use by lib.types

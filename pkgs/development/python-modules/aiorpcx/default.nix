@@ -4,7 +4,7 @@
   buildPythonPackage,
   setuptools,
   websockets,
-  pytest-asyncio,
+  pytest-asyncio_0,
   pytestCheckHook,
 }:
 
@@ -25,10 +25,10 @@ buildPythonPackage rec {
   optional-dependencies.ws = [ websockets ];
 
   nativeCheckInputs = [
-    pytest-asyncio
+    pytest-asyncio_0
     pytestCheckHook
   ]
-  ++ lib.flatten (lib.attrValues optional-dependencies);
+  ++ lib.concatAttrValues optional-dependencies;
 
   disabledTests = [
     # network access
@@ -37,10 +37,10 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "aiorpcx" ];
 
-  meta = with lib; {
+  meta = {
     description = "Transport, protocol and framing-independent async RPC client and server implementation";
     homepage = "https://github.com/kyuupichan/aiorpcX";
-    license = licenses.mit;
-    maintainers = with maintainers; [ prusnak ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ prusnak ];
   };
 }

@@ -1,62 +1,74 @@
 {
-  lib,
-  stdenv,
-  systemPlatform,
   buildDartApplication,
-  runCommand,
-  git,
-  which,
   dart,
-  version,
-  flutterSrc,
-  patches ? [ ],
+  flutterSource,
+  lib,
+  patches,
   pubspecLock,
+  runCommand,
+  stdenv,
+  version,
+  which,
+  writableTmpDirAsHomeHook,
 }:
 
-buildDartApplication.override { inherit dart; } rec {
+let
+  dartEntryPoints = {
+    "flutter_tools.snapshot" = "bin/flutter_tools.dart";
+  };
+in
+buildDartApplication.override { inherit dart; } (finalAttrs: {
+  __structuredAttrs = true;
+  strictDeps = true;
   pname = "flutter-tools";
-  inherit version;
+  inherit
+    version
+    patches
+    pubspecLock
+    dartEntryPoints
+    ;
+
+  src = flutterSource;
+
+  sourceRoot = "${finalAttrs.src.name}/packages/flutter_tools";
+
   dartOutputType = "jit-snapshot";
 
-  src = flutterSrc;
-  sourceRoot = "${src.name}/packages/flutter_tools";
-  postUnpack = ''chmod -R u+w "$NIX_BUILD_TOP/source"'';
+  dartCompileFlags = [ "--define=NIX_FLUTTER_HOST_PLATFORM=${stdenv.hostPlatform.system}" ];
 
-  inherit patches;
   # The given patches are made for the entire SDK source tree.
-  prePatch = ''pushd "$NIX_BUILD_TOP/source"'';
+  prePatch = ''
+    chmod --recursive u+w "../.."
+    pushd "../.."
+  '';
+
   postPatch = ''
+    echo -n "${version}" > version
     popd
   ''
-  # Use arm64 instead of arm64e.
   + lib.optionalString stdenv.hostPlatform.isDarwin ''
     substituteInPlace lib/src/ios/xcodeproj.dart \
-      --replace-fail arm64e arm64
+      --replace-fail "arm64e" "arm64"
   '';
 
   # When the JIT snapshot is being built, the application needs to run.
   # It attempts to generate configuration files, and relies on a few external
   # tools.
   nativeBuildInputs = [
-    git
     which
+    writableTmpDirAsHomeHook
   ];
-  preConfigure = ''
-    export HOME=.
-    export FLUTTER_ROOT="$NIX_BUILD_TOP/source"
-    mkdir -p "$FLUTTER_ROOT/bin/cache"
-    ln -s '${dart}' "$FLUTTER_ROOT/bin/cache/dart-sdk"
-  '';
 
-  dartEntryPoints."flutter_tools.snapshot" = "bin/flutter_tools.dart";
-  dartCompileFlags = [ "--define=NIX_FLUTTER_HOST_PLATFORM=${systemPlatform}" ];
+  preConfigure = ''
+    export FLUTTER_ROOT=$(realpath ../../)
+    mkdir --parents "$FLUTTER_ROOT/bin/cache"
+    ln --symbolic "${dart}" "$FLUTTER_ROOT/bin/cache/dart-sdk"
+  '';
 
   # The Dart wrapper launchers are useless for the Flutter tool - it is designed
   # to be launched from a snapshot by the SDK.
   postInstall = ''
-    pushd "$out"
-    rm ${builtins.concatStringsSep " " (builtins.attrNames dartEntryPoints)}
-    popd
+    rm "$out"/${builtins.concatStringsSep " " (builtins.attrNames dartEntryPoints)}
   '';
 
   sdkSourceBuilders = {
@@ -66,7 +78,7 @@ buildDartApplication.override { inherit dart; } rec {
       runCommand "dart-sdk-${name}" { passthru.packageRoot = "."; } ''
         for path in '${dart}/pkg/${name}'; do
           if [ -d "$path" ]; then
-            ln -s "$path" "$out"
+            ln --symbolic "$path" "$out"
             break
           fi
         done
@@ -77,6 +89,4 @@ buildDartApplication.override { inherit dart; } rec {
         fi
       '';
   };
-
-  inherit pubspecLock;
-}
+})

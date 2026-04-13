@@ -3,83 +3,86 @@
   rustPlatform,
   fetchFromGitHub,
   pkg-config,
+  xremap,
+
+  withVariant ? "wlroots",
 }:
 let
-  pname = "xremap";
-  version = "0.10.14";
-
-  src = fetchFromGitHub {
-    owner = "xremap";
-    repo = "xremap";
-    tag = "v${version}";
-    hash = "sha256-7bkLn8cGDxUjy9rMcGmgrzm1YGouScQEmQMlg1k+HCY=";
-  };
-
-  cargoHash = "sha256-CmlwXmQDqIr2BZrl3/uwTarRV/xGof+2mavAVUejiZE=";
-
-  buildXremap =
-    {
-      suffix ? "",
-      features ? [ ],
-      descriptionSuffix ? "",
-    }:
-    assert descriptionSuffix != "" && features != [ ];
-    rustPlatform.buildRustPackage {
-      pname = "${pname}${suffix}";
-      inherit version src cargoHash;
-
-      nativeBuildInputs = [ pkg-config ];
-
-      buildNoDefaultFeatures = true;
-      buildFeatures = features;
-
-      meta = {
-        description =
-          "Key remapper for X11 and Wayland"
-          + lib.optionalString (descriptionSuffix != "") " (${descriptionSuffix} support)";
-        homepage = "https://github.com/xremap/xremap";
-        changelog = "https://github.com/xremap/xremap/blob/${src.tag}/CHANGELOG.md";
-        license = lib.licenses.mit;
-        mainProgram = "xremap";
-        maintainers = [ lib.maintainers.hakan-demirli ];
-        platforms = lib.platforms.linux;
-      };
-    };
-
   variants = {
-    x11 = buildXremap {
+    x11 = {
       features = [ "x11" ];
       descriptionSuffix = "X11";
     };
-    gnome = buildXremap {
+    gnome = {
       suffix = "-gnome";
       features = [ "gnome" ];
       descriptionSuffix = "Gnome";
     };
-    kde = buildXremap {
+    kde = {
       suffix = "-kde";
       features = [ "kde" ];
       descriptionSuffix = "KDE";
     };
-    wlroots = buildXremap {
+    wlroots = {
       suffix = "-wlroots";
       features = [ "wlroots" ];
       descriptionSuffix = "wlroots";
     };
-    hyprland = buildXremap {
+    hyprland = {
       suffix = "-hyprland";
       features = [ "hypr" ];
       descriptionSuffix = "Hyprland";
     };
+    niri = {
+      suffix = "-niri";
+      features = [ "niri" ];
+      descriptionSuffix = "Niri";
+    };
+    cosmic = {
+      suffix = "-cosmic";
+      features = [ "cosmic" ];
+      descriptionSuffix = "Cosmic";
+    };
+    socket = {
+      suffix = "";
+      features = [ "socket" ];
+      descriptionSuffix = "Socket client";
+    };
   };
 
+  variant = variants.${withVariant} or null;
 in
-variants.wlroots.overrideAttrs (finalAttrs: {
-  passthru = {
-    gnome = variants.gnome;
-    kde = variants.kde;
-    wlroots = variants.wlroots;
-    hyprland = variants.hyprland;
-    x11 = variants.x11;
+assert (
+  lib.assertMsg (variant != null)
+    "Unknown variant ${withVariant}: expected one of ${lib.concatStringsSep ", " (lib.attrNames variants)}"
+);
+rustPlatform.buildRustPackage (finalAttrs: {
+  pname = "xremap${variant.suffix or ""}";
+  version = "0.15.0";
+
+  src = fetchFromGitHub {
+    owner = "xremap";
+    repo = "xremap";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-8IryQGSAxIVQiGGiY3trDvvJ50c19LHP4KvIa3P0zII=";
+  };
+
+  nativeBuildInputs = [ pkg-config ];
+
+  buildNoDefaultFeatures = true;
+  buildFeatures = variant.features;
+
+  cargoHash = "sha256-5vDKb6S4G+oNm//WtGsr4kEthozoznzn2N8ajtiMIeY=";
+
+  passthru = lib.mapAttrs (name: lib.const (xremap.override { withVariant = name; })) variants;
+
+  meta = {
+    description = "Key remapper for X11 and Wayland (${variant.descriptionSuffix} support)";
+    homepage = "https://github.com/xremap/xremap";
+    changelog = "https://github.com/xremap/xremap/blob/v${finalAttrs.version}/CHANGELOG.md";
+    license = lib.licenses.mit;
+    mainProgram = "xremap";
+    maintainers = [ lib.maintainers.hakan-demirli ];
+    platforms = lib.platforms.linux;
   };
 })

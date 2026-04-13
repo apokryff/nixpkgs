@@ -5,7 +5,7 @@
   fetchFromGitHub,
 
   # build-system
-  poetry-core,
+  uv-build,
 
   # dependencies
   scikit-learn,
@@ -24,17 +24,22 @@
 
 buildPythonPackage rec {
   pname = "bayesian-optimization";
-  version = "3.0.1";
+  version = "3.2.1";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "bayesian-optimization";
     repo = "BayesianOptimization";
     tag = "v${version}";
-    hash = "sha256-dq5R0/gqjSzQPAmYvtByJ6gT8pOiXcezfYlKpFLnryk=";
+    hash = "sha256-pTtwuBQUdVsi98nndEyY9mawGiTwjgiD05EsQwQFiPo=";
   };
 
-  build-system = [ poetry-core ];
+  postPatch = ''
+    substituteInPlace pyproject.toml \
+      --replace-fail "uv_build>=0.7.21,<0.8.0" "uv_build"
+  '';
+
+  build-system = [ uv-build ];
 
   dependencies = [
     scikit-learn

@@ -5,22 +5,19 @@
   buildPythonPackage,
   fetchFromGitHub,
   pyopenssl,
-  pythonOlder,
   setuptools,
 }:
 
 buildPythonPackage rec {
   pname = "thinqconnect";
-  version = "1.0.7";
+  version = "1.0.11";
   pyproject = true;
-
-  disabled = pythonOlder "3.10";
 
   src = fetchFromGitHub {
     owner = "thinq-connect";
     repo = "pythinqconnect";
     tag = version;
-    hash = "sha256-wnlUwThmDRNosdWVvzqB3KP0LPL37+MnXXD84AeIUL8=";
+    hash = "sha256-ZM+CCnGJga66b68MLKkd80dHPhF4mYMIFuV1M+5K3C8=";
   };
 
   build-system = [ setuptools ];

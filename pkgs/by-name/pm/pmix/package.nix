@@ -20,21 +20,23 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "pmix";
-  version = "5.0.7";
+  version = "6.1.0";
 
   src = fetchFromGitHub {
     repo = "openpmix";
     owner = "openpmix";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-qj/exBi1siCHY1QqNY+ad6n3XI4JZuwnM93Vp+rj1AQ=";
+    hash = "sha256-wMVppqSXpQeBgkwna+jaU5kY03WHbGwMQQrouCyGROo=";
     fetchSubmodules = true;
   };
 
   outputs = [ "out" ] ++ lib.optionals stdenv.hostPlatform.isLinux [ "dev" ];
 
   postPatch = ''
-    patchShebangs ./autogen.pl
-    patchShebangs ./config
+    patchShebangs --build ./autogen.pl
+    patchShebangs --build ./config
+    patchShebangs --build ./contrib
+    patchShebangs --build ./src/util/convert-help.py
   '';
 
   nativeBuildInputs = [

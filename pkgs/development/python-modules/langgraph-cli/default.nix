@@ -8,9 +8,11 @@
 
   # dependencies
   click,
-  langgraph,
+  httpx,
   langgraph-runtime-inmem,
   langgraph-sdk,
+  langgraph,
+  pathspec,
   python-dotenv,
 
   # testing
@@ -22,25 +24,28 @@
   gitUpdater,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "langgraph-cli";
-  version = "0.3.6";
+  version = "0.4.21";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "langchain-ai";
     repo = "langgraph";
-    tag = "cli==${version}";
-    hash = "sha256-tBMdFOHSRjw0PtE19XytLU4MmjR3NBLJxUqWoG4L2F8=";
+    tag = "cli==${finalAttrs.version}";
+    hash = "sha256-PwVJzg+LQ6gScd/lewBqN66rzADnucMeIA/4gmP4xPw=";
   };
 
-  sourceRoot = "${src.name}/libs/cli";
+  sourceRoot = "${finalAttrs.src.name}/libs/cli";
 
   build-system = [ hatchling ];
 
   dependencies = [
     click
+    httpx
     langgraph-sdk
+    pathspec
+    python-dotenv
   ];
 
   optional-dependencies = {
@@ -56,7 +61,7 @@ buildPythonPackage rec {
     pytestCheckHook
     docker-compose
   ]
-  ++ lib.flatten (builtins.attrValues optional-dependencies);
+  ++ lib.concatAttrValues finalAttrs.passthru.optional-dependencies;
 
   enabledTestPaths = [ "tests/unit_tests" ];
 
@@ -80,16 +85,20 @@ buildPythonPackage rec {
     "test_build_command_shows_wolfi_warning"
   ];
 
-  passthru.updateScript = gitUpdater {
-    rev-prefix = "cli==";
+  passthru = {
+    # python updater script sets the wrong tag
+    skipBulkUpdate = true;
+    updateScript = gitUpdater {
+      rev-prefix = "cli==";
+    };
   };
 
   meta = {
     description = "Official CLI for LangGraph API";
     homepage = "https://github.com/langchain-ai/langgraph/tree/main/libs/cli";
-    changelog = "https://github.com/langchain-ai/langgraph/releases/tag/${version}";
+    changelog = "https://github.com/langchain-ai/langgraph/releases/tag/${finalAttrs.src.tag}";
     mainProgram = "langgraph";
     license = lib.licenses.mit;
     maintainers = with lib.maintainers; [ sarahec ];
   };
-}
+})

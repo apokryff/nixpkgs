@@ -33,7 +33,7 @@ Here, we include two modules from the same directory, `vpn.nix` and
 {
   services.xserver.enable = true;
   services.displayManager.sddm.enable = true;
-  services.xserver.desktopManager.plasma5.enable = true;
+  services.desktopManager.plasma6.enable = true;
   environment.systemPackages = [ pkgs.vim ];
 }
 ```
@@ -113,7 +113,7 @@ Interactive exploration of the configuration is possible using `nix
   repl`, a read-eval-print loop for Nix expressions. A typical use:
 
 ```ShellSession
-$ nix repl '<nixpkgs/nixos>'
+$ nix repl -f '<nixpkgs/nixos>'
 
 nix-repl> config.networking.hostName
 "mandark"

@@ -3,7 +3,6 @@
   stdenv,
   fetchFromGitHub,
   fetchpatch,
-  fetchurl,
   buildPackages,
   cmake,
   zlib,
@@ -24,9 +23,9 @@
 # This package should be updated together with all related python grpc packages
 # to ensure compatibility.
 # nixpkgs-update: no auto update
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "grpc";
-  version = "1.73.1"; # N.B: if you change this, please update:
+  version = "1.78.0"; # N.B: if you change this, please update:
   # pythonPackages.grpcio
   # pythonPackages.grpcio-channelz
   # pythonPackages.grpcio-health-checking
@@ -38,8 +37,8 @@ stdenv.mkDerivation rec {
   src = fetchFromGitHub {
     owner = "grpc";
     repo = "grpc";
-    tag = "v${version}";
-    hash = "sha256-VAr+f+xqZfrP4XfCnZ9KxVTO6pHQe9gB2DgaQuen840=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-hupso9w++lYtAMoLS/qVmUYqZyQAX3rH0I8zCLyBo40=";
     fetchSubmodules = true;
   };
 
@@ -54,11 +53,6 @@ stdenv.mkDerivation rec {
   ++ lib.optionals stdenv.hostPlatform.isDarwin [
     # fix build of 1.63.0 and newer on darwin: https://github.com/grpc/grpc/issues/36654
     ./dynamic-lookup-darwin.patch
-    # https://github.com/grpc/grpc/issues/39170
-    (fetchurl {
-      url = "https://raw.githubusercontent.com/rdhafidh/vcpkg/0ae97b7b81562bd66ab99d022551db1449c079f9/ports/grpc/00017-add-src-upb.patch";
-      hash = "sha256-0zaJqeCM90DTtUR6xCUorahUpiJF3D/KODYkUXQh2ok=";
-    })
   ];
 
   nativeBuildInputs = [
@@ -145,6 +139,6 @@ stdenv.mkDerivation rec {
     maintainers = with lib.maintainers; [ lnl7 ];
     homepage = "https://grpc.io/";
     platforms = lib.platforms.all;
-    changelog = "https://github.com/grpc/grpc/releases/tag/v${version}";
+    changelog = "https://github.com/grpc/grpc/releases/tag/v${finalAttrs.version}";
   };
-}
+})

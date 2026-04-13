@@ -47,7 +47,11 @@
   enableJack ? true,
   libjack2,
   enableX11 ? stdenv.hostPlatform.isLinux,
-  xorg,
+  libxtst,
+  libxi,
+  libxfixes,
+  libxext,
+  libxdamage,
   ncurses,
   enableWayland ? stdenv.hostPlatform.isLinux,
   wayland,
@@ -74,7 +78,7 @@ assert raspiCameraSupport -> hostSupportsRaspiCamera;
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "gst-plugins-good";
-  version = "1.26.0";
+  version = "1.26.5";
 
   outputs = [
     "out"
@@ -83,20 +87,13 @@ stdenv.mkDerivation (finalAttrs: {
 
   src = fetchurl {
     url = "https://gstreamer.freedesktop.org/src/gst-plugins-good/gst-plugins-good-${finalAttrs.version}.tar.xz";
-    hash = "sha256-nhjxOe9prQhnwt+7j+HRc2123xGqyD9g6NOtseLq8Ds=";
+    hash = "sha256-6whi6TQEsHPpjsUDUOzn5mheopNsq4EYwrjpOOLL6os=";
   };
 
   patches = [
     # dlopen libsoup_3 with an absolute path
     (replaceVars ./souploader.diff {
       nixLibSoup3Path = "${lib.getLib libsoup_3}/lib";
-    })
-
-    (fetchpatch {
-      name = "musl.patch";
-      url = "https://gitlab.freedesktop.org/gstreamer/gstreamer/-/commit/dd1fc2b7931f5789815e17dda2ef7c31b9fba563.patch";
-      stripLen = 2;
-      hash = "sha256-m2h1F6M2hzw3HxizmCyEEqkUQe0ccLWFBvgT2f+GjNE=";
     })
   ];
 
@@ -110,10 +107,13 @@ stdenv.mkDerivation (finalAttrs: {
     meson
     ninja
     gettext
-    nasm
     orc
     libshout
     glib
+  ]
+  # https://gitlab.freedesktop.org/gstreamer/gstreamer/-/blob/bb7069bd6fff80e8599d6e79f3f000b83dbce4d6/subprojects/gst-plugins-good/meson.build#L435-443
+  ++ lib.optionals stdenv.hostPlatform.isx86_64 [
+    nasm
   ]
   ++ lib.optionals enableDocumentation [
     hotdoc
@@ -165,11 +165,11 @@ stdenv.mkDerivation (finalAttrs: {
     libraspberrypi
   ]
   ++ lib.optionals enableX11 [
-    xorg.libXext
-    xorg.libXfixes
-    xorg.libXdamage
-    xorg.libXtst
-    xorg.libXi
+    libxext
+    libxfixes
+    libxdamage
+    libxtst
+    libxi
   ]
   ++ lib.optionals gtkSupport [
     # for gtksink
@@ -215,6 +215,7 @@ stdenv.mkDerivation (finalAttrs: {
     "-Dexamples=disabled" # requires many dependencies and probably not useful for our users
     "-Dglib_debug=disabled" # cast checks should be disabled on stable releases
     (lib.mesonEnable "doc" enableDocumentation)
+    (lib.mesonEnable "asm" true)
   ]
   ++ lib.optionals (!qt5Support) [
     "-Dqt5=disabled"
@@ -269,6 +270,10 @@ stdenv.mkDerivation (finalAttrs: {
   # must be explicitly set since 5590e365
   dontWrapQtApps = true;
 
+  preFixup = ''
+    moveToOutput "lib/gstreamer-1.0/pkgconfig" "$dev"
+  '';
+
   passthru = {
     tests = {
       gtk = gst-plugins-good.override {
@@ -290,7 +295,7 @@ stdenv.mkDerivation (finalAttrs: {
     updateScript = directoryListingUpdater { };
   };
 
-  meta = with lib; {
+  meta = {
     description = "GStreamer Good Plugins";
     homepage = "https://gstreamer.freedesktop.org";
     longDescription = ''
@@ -298,8 +303,8 @@ stdenv.mkDerivation (finalAttrs: {
       correct functionality, our preferred license (LGPL for the plug-in
       code, LGPL or LGPL-compatible for the supporting library).
     '';
-    license = licenses.lgpl2Plus;
-    platforms = platforms.linux ++ platforms.darwin;
-    maintainers = with maintainers; [ matthewbauer ];
+    license = lib.licenses.lgpl2Plus;
+    platforms = lib.platforms.linux ++ lib.platforms.darwin;
+    maintainers = [ ];
   };
 })

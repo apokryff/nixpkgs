@@ -23,11 +23,11 @@ let
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "openvpn";
-  version = "2.6.14";
+  version = "2.6.19";
 
   src = fetchurl {
     url = "https://swupdate.openvpn.net/community/releases/openvpn-${finalAttrs.version}.tar.gz";
-    hash = "sha256-nramYYNS+ee3canTiuFjG17f7tbUAjPiQ+YC3fIZXno=";
+    hash = "sha256-E3AlJvaHwYslQMGj8uGJGHuqplIR7c9/9ncvpp8FNs8=";
   };
 
   nativeBuildInputs = [
@@ -74,13 +74,13 @@ stdenv.mkDerivation (finalAttrs: {
     inherit (nixosTests) initrd-network-openvpn systemd-initrd-networkd-openvpn;
   };
 
-  meta = with lib; {
+  meta = {
     description = "Robust and highly flexible tunneling application";
     downloadPage = "https://openvpn.net/community-downloads/";
     homepage = "https://openvpn.net/";
-    license = licenses.gpl2Only;
-    maintainers = with maintainers; [ peterhoeg ];
-    platforms = platforms.unix;
+    license = lib.licenses.gpl2Only;
+    maintainers = with lib.maintainers; [ peterhoeg ];
+    platforms = lib.platforms.unix;
     mainProgram = "openvpn";
   };
 })

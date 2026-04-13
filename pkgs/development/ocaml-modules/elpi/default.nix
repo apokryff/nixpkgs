@@ -11,14 +11,14 @@
   re,
   perl,
   ncurses,
-  ppxlib,
   ppx_deriving,
-  ppxlib_0_15,
   ppx_deriving_0_15,
+  ppx_deriving_0_33,
+  ppx_optcomp,
   coqPackages,
   version ?
     if lib.versionAtLeast ocaml.version "4.13" then
-      "3.0.1"
+      "3.6.2"
     else if lib.versionAtLeast ocaml.version "4.08" then
       "1.20.0"
     else
@@ -33,7 +33,15 @@ let
 in
 
 let
-  fetched = coqPackages.metaFetch ({
+  fetched = coqPackages.metaFetch {
+    release."3.6.2".sha256 = "sha256-BDE4L5qYZfaMt+6JivNBJIaJGeDSf5E+Kw1Wera/WFk=";
+    release."3.6.1".sha256 = "sha256-zoVgRqNAXeCgk3zGntVkkZxIiQrCU5+ONeI97BiT674=";
+    release."3.4.5".sha256 = "sha256-cck6XqC98Z9lb3CYS8K/aB1WOckjAyXzZ14vX41nJvI=";
+    release."3.4.4".sha256 = "sha256-SvNNAyBYIkSMv3rhx0wVu2JjHdGYUOqaFzZKGBMMebs=";
+    release."3.4.3".sha256 = "sha256-2bzUzUO/Ps1uxHHIzQx0pULme9upYxBBggenxaQrd+I=";
+    release."3.4.2".sha256 = "sha256-w7GjKYZrVrfezJN0NLmzpVm6CFGVKxXszHADFGCw5cc=";
+    release."3.4.1".sha256 = "sha256-3rQPw91dHAqp61KTHk1UOEqh5syWrZZ1V1/1eE8cyI8=";
+    release."3.3.0".sha256 = "sha256:963f95eea48b8f853cca9cbe4db49f22343c58e88dc961bc1da303356ef50dcd";
     release."3.0.1".sha256 = "sha256-r4B0xn6UCVslVW4dHiqq8NBMGfNz44kZy48KDWeGquc=";
     release."2.0.7".sha256 = "sha256-gCM+vZK6vWlhSO1VMjiWHse23mvxVwRarhxwkIQK7e0=";
     release."2.0.6".sha256 = "sha256-tRUYXQZ0VXrjIZBZ1skdzieUsww4rSNEe5ik+iKpk3U=";
@@ -56,7 +64,7 @@ let
       owner = "LPCIC";
       repo = "elpi";
     };
-  }) version;
+  } version;
 in
 let
   inherit (fetched) version;
@@ -78,6 +86,7 @@ buildDunePackage {
   buildInputs = [
     ncurses
   ]
+  ++ lib.optional (lib.versionAtLeast version "3.3.0" || version == "dev") ppx_optcomp
   ++ lib.optional (lib.versionAtLeast version "1.16" || version == "dev") atdgen-runtime;
 
   propagatedBuildInputs = [
@@ -86,22 +95,24 @@ buildDunePackage {
   ]
   ++ (if lib.versionAtLeast version "1.15" || version == "dev" then [ menhirLib ] else [ camlp5 ])
   ++ (
-    if lib.versionAtLeast version "1.13" || version == "dev" then
+    if lib.versionAtLeast version "2.0.7" || version == "dev" then
       [
-        ppxlib
         ppx_deriving
+      ]
+    else if lib.versionAtLeast version "1.13" then
+      [
+        ppx_deriving_0_33
       ]
     else
       [
-        ppxlib_0_15
         ppx_deriving_0_15
       ]
   );
 
-  meta = with lib; {
+  meta = {
     description = "Embeddable λProlog Interpreter";
-    license = licenses.lgpl21Plus;
-    maintainers = [ maintainers.vbgl ];
+    license = lib.licenses.lgpl21Plus;
+    maintainers = [ lib.maintainers.vbgl ];
     homepage = "https://github.com/LPCIC/elpi";
   };
 

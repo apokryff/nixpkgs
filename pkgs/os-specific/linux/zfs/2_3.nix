@@ -3,6 +3,7 @@
   lib,
   nixosTests,
   stdenv,
+  fetchpatch,
   ...
 }@args:
 
@@ -12,10 +13,10 @@ callPackage ./generic.nix args {
   kernelModuleAttribute = "zfs_2_3";
 
   kernelMinSupportedMajorMinor = "4.18";
-  kernelMaxSupportedMajorMinor = "6.15";
+  kernelMaxSupportedMajorMinor = "6.19";
 
   # this package should point to the latest release.
-  version = "2.3.3";
+  version = "2.3.6";
 
   tests = {
     inherit (nixosTests.zfs) series_2_3;
@@ -29,5 +30,5 @@ callPackage ./generic.nix args {
     amarshall
   ];
 
-  hash = "sha256-NXAbyGBfpzWfm4NaP1/otTx8fOnoRV17343qUMdQp5U=";
+  hash = "sha256-5p9UbOQ0WY+XeAO+btDyJ04nRnOQuEuwszduEV7cbso=";
 }

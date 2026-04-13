@@ -4,8 +4,7 @@
   fetchFromGitHub,
 
   # build-system
-  poetry-core,
-  setuptools,
+  hatchling,
 
   # dependencies
   asgiref,
@@ -26,6 +25,7 @@
   factory-boy,
   pillow,
   psycopg2,
+  pytest-asyncio,
   pytest-cov-stub,
   pytest-django,
   pytest-mock,
@@ -34,19 +34,23 @@
 
 buildPythonPackage rec {
   pname = "strawberry-django";
-  version = "0.60.0";
+  version = "0.75.1";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "strawberry-graphql";
     repo = "strawberry-django";
-    tag = "v${version}";
-    hash = "sha256-mMI/tPdt9XK6Lz7VmI3uDxcCjIuidUeGHjG+6AQLoeQ=";
+    tag = version;
+    hash = "sha256-vosD0JZYZzzl6Mp+AAxdXVox/7ay4FqnwqE6f1lSw3s=";
   };
 
+  postPatch = ''
+    # django.core.exceptions.ImproperlyConfigured: You're using the staticfiles app without having set the required STATIC_URL setting.
+    echo 'STATIC_URL = "static/"' >> tests/django_settings.py
+  '';
+
   build-system = [
-    poetry-core
-    setuptools
+    hatchling
   ];
 
   dependencies = [
@@ -71,6 +75,7 @@ buildPythonPackage rec {
     factory-boy
     pillow
     psycopg2
+    pytest-asyncio
     pytest-cov-stub
     pytest-django
     pytest-mock

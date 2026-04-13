@@ -2,28 +2,30 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
-  pythonOlder,
-  hatchling,
+  uv-build,
   optype,
   scipy,
 }:
 
 buildPythonPackage rec {
   pname = "scipy-stubs";
-  version = "1.16.0.2";
+  version = "1.17.0.1";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "scipy";
     repo = "scipy-stubs";
     tag = "v${version}";
-    hash = "sha256-xaBii3vONwfHlrsLr+uvXvirZ2WT1OgUzlYxRIRnGdI=";
+    hash = "sha256-wzXRnTaSYOePt3XvZ/OeBOQCKObuCL1rWrVDo73yM1I=";
   };
 
-  disabled = pythonOlder "3.11";
+  postPatch = ''
+    substituteInPlace pyproject.toml \
+      --replace-fail "uv_build>=0.9.0,<0.10.0" "uv_build"
+  '';
 
   build-system = [
-    hatchling
+    uv-build
   ];
 
   dependencies = [

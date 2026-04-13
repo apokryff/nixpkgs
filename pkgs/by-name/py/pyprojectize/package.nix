@@ -4,16 +4,16 @@
   python3,
 }:
 
-python3.pkgs.buildPythonApplication rec {
+python3.pkgs.buildPythonApplication (finalAttrs: {
   pname = "pyprojectize";
-  version = "1a6";
+  version = "1a7";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "hroncok";
     repo = "pyprojectize";
-    tag = version;
-    hash = "sha256-NW74IoGdghtX2Wlxocosx8zb3Htfqq6zN9iNpICdffs=";
+    tag = finalAttrs.version;
+    hash = "sha256-MVA8Mx+jpPrNB099BfAxGBfZWyvFTYR8q0vyspj7jSY=";
   };
 
   build-system = with python3.pkgs; [
@@ -33,9 +33,9 @@ python3.pkgs.buildPythonApplication rec {
   meta = {
     description = "Tool to convert a RPM spec file from %py3_build etc. macros to pyproject";
     homepage = "https://github.com/hroncok/pyprojectize";
-    changelog = "https://github.com/hroncok/pyprojectize/releases/tag/${src.tag}";
+    changelog = "https://github.com/hroncok/pyprojectize/releases/tag/${finalAttrs.src.tag}";
     license = lib.licenses.mit0;
     maintainers = with lib.maintainers; [ fab ];
     mainProgram = "pyprojectize";
   };
-}
+})

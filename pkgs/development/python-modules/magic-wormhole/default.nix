@@ -31,24 +31,25 @@
   # tests
   net-tools,
   unixtools,
-  magic-wormhole-transit-relay,
+  hypothesis,
   magic-wormhole-mailbox-server,
+  magic-wormhole-transit-relay,
   pytestCheckHook,
   pytest-twisted,
 
   gitUpdater,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "magic-wormhole";
-  version = "0.19.2";
+  version = "0.23.0";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "magic-wormhole";
     repo = "magic-wormhole";
-    tag = version;
-    hash = "sha256-5Tipcood5RktXY05p20hQpWhSMMnZm67I4iybjV8TcA=";
+    tag = finalAttrs.version;
+    hash = "sha256-knvQwdPfe9uHpSNqaEz4w2LY6LjCPVoUcFG0bhHQl+g=";
   };
 
   postPatch =
@@ -96,34 +97,36 @@ buildPythonPackage rec {
   ];
 
   nativeCheckInputs = [
+    hypothesis
     magic-wormhole-mailbox-server
     magic-wormhole-transit-relay
     pytestCheckHook
     pytest-twisted
   ]
-  ++ optional-dependencies.dilation
+  ++ finalAttrs.finalPackage.optional-dependencies.dilation
   ++ lib.optionals stdenv.hostPlatform.isDarwin [ unixtools.locale ];
-
-  enabledTestPaths = [ "src/wormhole/test" ];
 
   __darwinAllowLocalNetworking = true;
 
   postInstall = ''
     install -Dm644 docs/wormhole.1 $out/share/man/man1/wormhole.1
-    installShellCompletion --cmd ${meta.mainProgram} \
+
+    # https://github.com/magic-wormhole/magic-wormhole/issues/619
+    installShellCompletion --cmd ${finalAttrs.meta.mainProgram} \
       --bash wormhole_complete.bash \
       --fish wormhole_complete.fish \
       --zsh wormhole_complete.zsh
+    rm $out/wormhole_complete.*
   '';
 
   passthru.updateScript = gitUpdater { };
 
   meta = {
-    changelog = "https://github.com/magic-wormhole/magic-wormhole/blob/${version}/NEWS.md";
+    changelog = "https://github.com/magic-wormhole/magic-wormhole/blob/${finalAttrs.src.rev}/NEWS.md";
     description = "Securely transfer data between computers";
     homepage = "https://magic-wormhole.readthedocs.io/";
     license = lib.licenses.mit;
     maintainers = [ lib.maintainers.mjoerg ];
     mainProgram = "wormhole";
   };
-}
+})

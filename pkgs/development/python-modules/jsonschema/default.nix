@@ -6,12 +6,10 @@
   hatch-fancy-pypi-readme,
   hatch-vcs,
   hatchling,
-  importlib-resources,
+  jsonpath-ng,
   jsonschema-specifications,
-  pkgutil-resolve-name,
   pip,
   pytestCheckHook,
-  pythonOlder,
   referencing,
   rpds-py,
 
@@ -23,20 +21,19 @@
   rfc3339-validator,
   rfc3986-validator,
   rfc3987,
+  rfc3987-syntax,
   uri-template,
   webcolors,
 }:
 
 buildPythonPackage rec {
   pname = "jsonschema";
-  version = "4.23.0";
+  version = "4.26.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchPypi {
     inherit pname version;
-    hash = "sha256-1xSX/vJjUaMyZTN/p3/+uCQj8+ohKDzZRnuwOZkma8Q=";
+    hash = "sha256-DCZwfi762Kob/Ft84XDz/MwuSRj/hZibqf+p+ssr4yY=";
   };
 
   postPatch = ''
@@ -51,13 +48,10 @@ buildPythonPackage rec {
 
   dependencies = [
     attrs
+    jsonpath-ng
     jsonschema-specifications
     referencing
     rpds-py
-  ]
-  ++ lib.optionals (pythonOlder "3.9") [
-    importlib-resources
-    pkgutil-resolve-name
   ];
 
   optional-dependencies = {
@@ -78,6 +72,7 @@ buildPythonPackage rec {
       jsonpointer
       rfc3339-validator
       rfc3986-validator
+      rfc3987-syntax
       uri-template
       webcolors
     ];
@@ -90,12 +85,12 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "jsonschema" ];
 
-  meta = with lib; {
+  meta = {
     description = "Implementation of JSON Schema validation";
     homepage = "https://github.com/python-jsonschema/jsonschema";
     changelog = "https://github.com/python-jsonschema/jsonschema/blob/v${version}/CHANGELOG.rst";
-    license = licenses.mit;
-    maintainers = with maintainers; [ ];
+    license = lib.licenses.mit;
+    maintainers = [ ];
     mainProgram = "jsonschema";
   };
 }

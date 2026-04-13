@@ -9,7 +9,6 @@
 
   bison,
   flex,
-  git,
   gperf,
   ninja,
   pkg-config,
@@ -21,11 +20,16 @@
   pkgsBuildTarget,
   pkgsBuildBuild,
 
-  xorg,
-  libXcursor,
-  libXScrnSaver,
-  libXrandr,
-  libXtst,
+  expat,
+  libxdamage,
+  libxcomposite,
+  xrandr,
+  libxkbfile,
+  libpciaccess,
+  libxcursor,
+  libxscrnsaver,
+  libxrandr,
+  libxtst,
   fontconfig,
   freetype,
   harfbuzz,
@@ -58,7 +62,7 @@
   bootstrap_cmds,
   xcbuild,
   writeScriptBin,
-  ffmpeg ? null,
+  ffmpeg_7 ? null,
   lib,
   stdenv,
   version ? null,
@@ -95,7 +99,6 @@ qtModule (
     nativeBuildInputs = [
       bison
       flex
-      git
       gperf
       ninja
       pkg-config
@@ -219,6 +222,9 @@ qtModule (
         hash = "sha256-DcAYOV9b30ogPCiedvQimEmiZpUJquk5j6WLjJxR54U=";
         extraPrefix = "";
       })
+
+      # Fix the build with gperf ≥ 3.2 and Clang 19.
+      ./qtwebengine-gperf-3.2.patch
     ];
 
     postPatch = ''
@@ -266,14 +272,14 @@ qtModule (
       sed -i -e '/libpci_loader.*Load/s!"\(libpci\.so\)!"${pciutils}/lib/\1!' \
         src/3rdparty/chromium/gpu/config/gpu_info_collector_linux.cc
     ''
-    + lib.optionalString stdenv.hostPlatform.isDarwin (''
+    + lib.optionalString stdenv.hostPlatform.isDarwin ''
       substituteInPlace src/buildtools/config/mac_osx.pri \
         --replace 'QMAKE_CLANG_DIR = "/usr"' 'QMAKE_CLANG_DIR = "${stdenv.cc}"'
 
       # Use system ffmpeg
       echo "gn_args += use_system_ffmpeg=true" >> src/core/config/mac_osx.pri
       echo "LIBS += -lavformat -lavcodec -lavutil" >> src/core/core_common.pri
-    '')
+    ''
     + postPatch;
 
     env = {
@@ -352,8 +358,9 @@ qtModule (
       harfbuzz
       icu
 
+      expat
       libevent
-      ffmpeg
+      ffmpeg_7
     ]
     ++ lib.optionals (!stdenv.hostPlatform.isDarwin) [
       dbus
@@ -376,16 +383,16 @@ qtModule (
       pciutils
 
       # X11 libs
-      xorg.xrandr
-      libXScrnSaver
-      libXcursor
-      libXrandr
-      xorg.libpciaccess
-      libXtst
-      xorg.libXcomposite
-      xorg.libXdamage
+      xrandr
+      libxscrnsaver
+      libxcursor
+      libxrandr
+      libpciaccess
+      libxtst
+      libxcomposite
+      libxdamage
       libdrm
-      xorg.libxkbfile
+      libxkbfile
 
     ]
     ++ lib.optionals pipewireSupport [
@@ -437,10 +444,10 @@ qtModule (
 
     requiredSystemFeatures = [ "big-parallel" ];
 
-    meta = with lib; {
+    meta = {
       description = "Web engine based on the Chromium web browser";
       mainProgram = "qwebengine_convert_dict";
-      maintainers = with maintainers; [ matthewbauer ];
+      maintainers = [ ];
 
       # qtwebengine-5.15.8: "QtWebEngine can only be built for x86,
       # x86-64, ARM, Aarch64, and MIPSel architectures."
@@ -449,7 +456,7 @@ qtModule (
         let
           inherit (lib.systems.inspect) patternLogicalAnd;
         in
-        concatMap (patternLogicalAnd isUnix) (
+        lib.concatMap (patternLogicalAnd isUnix) (
           lib.concatMap lib.toList [
             isx86_32
             isx86_64
@@ -461,6 +468,43 @@ qtModule (
 
       # This build takes a long time; particularly on slow architectures
       timeout = 24 * 3600;
+
+      knownVulnerabilities = [
+        ''
+          qt5 qtwebengine is unmaintained upstream since april 2025.
+          It is based on chromium 87.0.4280.144, and supposedly patched up to 135.0.7049.95 which is outdated.
+
+          Security issues are frequently discovered in chromium.
+          The following list of CVEs was fixed in the life cycle of chromium 138 and likely also affects qtwebengine:
+          - CVE-2025-8879
+          - CVE-2025-8880
+          - CVE-2025-8901
+          - CVE-2025-8881
+          - CVE-2025-8882
+          - CVE-2025-8576
+          - CVE-2025-8577
+          - CVE-2025-8578
+          - CVE-2025-8579
+          - CVE-2025-8580
+          - CVE-2025-8581
+          - CVE-2025-8582
+          - CVE-2025-8583
+          - CVE-2025-8292
+          - CVE-2025-8010
+          - CVE-2025-8011
+          - CVE-2025-7656
+          - CVE-2025-6558 (known to be exploited in the wild)
+          - CVE-2025-7657
+          - CVE-2025-6554
+          - CVE-2025-6555
+          - CVE-2025-6556
+          - CVE-2025-6557
+
+          The actual list of CVEs affecting qtwebengine is likely much longer,
+          as this list is missing issues fixed in chromium 136/137 and even more
+          issues are continuously discovered and lack upstream fixes in qtwebengine.
+        ''
+      ];
     };
 
   }

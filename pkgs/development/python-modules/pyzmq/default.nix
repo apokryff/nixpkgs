@@ -15,7 +15,6 @@
 
   # checks
   pytestCheckHook,
-  pythonOlder,
   tornado,
   libsodium,
   zeromq,
@@ -24,14 +23,12 @@
 
 buildPythonPackage rec {
   pname = "pyzmq";
-  version = "26.4.0";
+  version = "27.1.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.6";
 
   src = fetchPypi {
     inherit pname version;
-    hash = "sha256-S9E/hfgJYvkaZRpzVv4EcnkaX3qS8ieCK1rPRHlcYm0=";
+    hash = "sha256-rAdl49REVa223b9EF9zORg/ECgWXjAjv3ylIBy9ttUA=";
   };
 
   build-system = [
@@ -85,10 +82,10 @@ buildPythonPackage rec {
   # Some of the tests use localhost networking.
   __darwinAllowLocalNetworking = true;
 
-  meta = with lib; {
+  meta = {
     description = "Python bindings for ØMQ";
     homepage = "https://pyzmq.readthedocs.io/";
-    license = with licenses; [
+    license = with lib.licenses; [
       bsd3 # or
       lgpl3Only
     ];

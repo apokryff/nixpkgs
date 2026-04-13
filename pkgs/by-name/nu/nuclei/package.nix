@@ -5,18 +5,18 @@
   versionCheckHook,
 }:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "nuclei";
-  version = "3.4.7";
+  version = "3.7.1";
 
   src = fetchFromGitHub {
     owner = "projectdiscovery";
     repo = "nuclei";
-    tag = "v${version}";
-    hash = "sha256-UlcMHbN41jY8T5aGlUvobzEUDopAzyI7pqs9SpzuPWU=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-PiuFlEIEQNsVLLwHVDi+b/ABPyrp4+hnO6JjLGHxWc0=";
   };
 
-  vendorHash = "sha256-W/lnL2bcYIBFKt9vNiKLkas/QB3100DSdhW6yUN1MOY=";
+  vendorHash = "sha256-eevywU57QoA2K/Fl4XQZwaiyGCiGDrkvAdco6khcInc=";
 
   proxyVendor = true; # hash mismatch between Linux and Darwin
 
@@ -46,7 +46,7 @@ buildGoModule rec {
       CVEs across targets that are known and easily detectable.
     '';
     homepage = "https://github.com/projectdiscovery/nuclei";
-    changelog = "https://github.com/projectdiscovery/nuclei/releases/tag/v${version}";
+    changelog = "https://github.com/projectdiscovery/nuclei/releases/tag/${finalAttrs.src.tag}";
     license = lib.licenses.mit;
     maintainers = with lib.maintainers; [
       fab
@@ -54,4 +54,4 @@ buildGoModule rec {
     ];
     mainProgram = "nuclei";
   };
-}
+})

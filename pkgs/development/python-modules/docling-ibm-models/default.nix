@@ -30,14 +30,14 @@
 
 buildPythonPackage rec {
   pname = "docling-ibm-models";
-  version = "3.9.0";
+  version = "3.11.0";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "docling-project";
     repo = "docling-ibm-models";
     tag = "v${version}";
-    hash = "sha256-UmgxEPEm6fNf4FbZ7CIcSEIaJg4sReI0pnkWwPdrJvQ=";
+    hash = "sha256-foRoxuTqwNqn2q/3pAXNoiUYrAKwzXVnAabNRietZ40=";
   };
 
   build-system = [
@@ -91,6 +91,6 @@ buildPythonPackage rec {
     description = "Docling IBM models";
     homepage = "https://github.com/DS4SD/docling-ibm-models";
     license = lib.licenses.mit;
-    maintainers = with lib.maintainers; [ drupol ];
+    maintainers = [ ];
   };
 }

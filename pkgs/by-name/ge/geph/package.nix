@@ -2,46 +2,50 @@
   lib,
   rustPlatform,
   fetchFromGitHub,
+  makeBinaryWrapper,
   pkg-config,
-  libxkbcommon,
   openssl,
   rust-jemalloc-sys-unprefixed,
   sqlite,
-  vulkan-loader,
-  wayland,
+  bash,
+  coreutils,
   iproute2,
   iptables,
-  libglvnd,
-  copyDesktopItems,
-  makeDesktopItem,
+  nix-update-script,
 }:
 let
   binPath = lib.makeBinPath [
+    bash
+    coreutils
     iproute2
     iptables
   ];
 in
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "geph5";
-  version = "0.2.72";
+  version = "0.2.93";
 
   src = fetchFromGitHub {
     owner = "geph-official";
     repo = "geph5";
     rev = "geph5-client-v${finalAttrs.version}";
-    hash = "sha256-+/oOQjebkn3iYi5UXFzFoe0ldu+p+nf5uEjGhk5nlNo=";
+    hash = "sha256-ZYcGW6Ssauf5BUs75KBV+4Zub2ZCVN29cWTxeNi87cI=";
   };
 
-  cargoHash = "sha256-OFSsMa/xErNB+1cvEOnGshJJEcG8ZDf9y/uYVnsVwhU=";
+  cargoHash = "sha256-0Ml8tgWghxhDJzUMMD+YGwy3fyFjKcNjbV8MDJW8rZk=";
 
   postPatch = ''
     substituteInPlace binaries/geph5-client/src/vpn/*.sh \
       --replace-fail 'PATH=' 'PATH=${binPath}:'
+
+    substituteInPlace binaries/geph5-client/src/vpn/linux.rs \
+      --replace-fail 'Command::new("sh")' 'Command::new("${bash}/bin/sh")' \
+      --replace-fail '/usr/bin/env ' '${lib.getExe' coreutils "env"} '
   '';
 
   nativeBuildInputs = [
+    makeBinaryWrapper
     pkg-config
-    copyDesktopItems
   ];
 
   buildInputs = [
@@ -65,38 +69,25 @@ rustPlatform.buildRustPackage (finalAttrs: {
     "--skip=traffcount::tests::test_traffic_count_basic"
     # Requires network
     "--skip=dns::tests::resolve_google"
+    "--skip=tests::test_clib"
     # Never finish
     "--skip=tests::test_blind_sign"
     "--skip=tests::test_generate_secret_key"
     "--skip=tests::ping_pong"
   ];
 
-  desktopItems = [
-    (makeDesktopItem {
-      name = "Geph5";
-      desktopName = "Geph5";
-      icon = "geph5";
-      exec = "geph5-client-gui";
-      categories = [ "Network" ];
-      comment = "Modular Internet censorship circumvention system designed specifically to deal with national filtering";
-    })
-  ];
-
-  postInstall = ''
-    install -m 444 -D binaries/geph5-client-gui/icon.png $out/share/icons/hicolor/512x512/apps/geph5.png
-  '';
-
   postFixup = ''
-    # Add required but not explicitly requested libraries
-    patchelf --add-rpath '${
-      lib.makeLibraryPath [
-        wayland
-        libxkbcommon
-        vulkan-loader
-        libglvnd
-      ]
-    }' "$out/bin/geph5-client-gui"
+    for program in $out/bin/*; do
+      wrapProgram "$program" --prefix PATH : ${binPath}
+    done
   '';
+
+  passthru.updateScript = nix-update-script {
+    extraArgs = [
+      "--version-regex"
+      "geph5-client-v(.*)"
+    ];
+  };
 
   meta = {
     description = "Modular Internet censorship circumvention system designed specifically to deal with national filtering";

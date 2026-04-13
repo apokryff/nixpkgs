@@ -21,7 +21,7 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "libfprint";
-  version = "1.94.9";
+  version = "1.94.10";
   outputs = [
     "out"
     "devdoc"
@@ -32,7 +32,7 @@ stdenv.mkDerivation (finalAttrs: {
     owner = "libfprint";
     repo = "libfprint";
     rev = "v${finalAttrs.version}";
-    hash = "sha256-UiUdZokgi27LlyO419dd+NIcQD2RSUfdsC08sW3qzko=";
+    hash = "sha256-aNBUIKY3PP5A07UNg3N0qq+2cwb6Fk67oKQcXgr2G/4=";
   };
 
   postPatch = ''
@@ -94,6 +94,6 @@ stdenv.mkDerivation (finalAttrs: {
     description = "Library designed to make it easy to add support for consumer fingerprint readers";
     license = lib.licenses.lgpl21Only;
     platforms = lib.platforms.linux;
-    maintainers = with lib.maintainers; [ abbradar ];
+    maintainers = [ ];
   };
 })

@@ -8,21 +8,24 @@
   pkg-config,
   freetype,
   libgit2,
+  libkqueue,
   libuchardet,
   libzip,
   lua5_4,
   luajit,
-  mbedtls_2,
+  mbedtls,
   pcre2,
-  SDL2,
+  sdl3,
+  sdl3-image,
   xz,
   zlib,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "pragtical";
-  version = "3.6.0";
-  pluginManagerVersion = "1.4.0";
+  version = "3.8.3";
+  pluginManagerVersion = "1.4.7.1";
+  linenoiseRev = "e78e236c8d85c078fdd9fc4e1f08716058aa1a42";
 
   src = fetchFromGitHub {
     owner = "pragtical";
@@ -37,15 +40,17 @@ stdenv.mkDerivation (finalAttrs: {
       export NIX_SSL_CERT_FILE=${cacert}/etc/ssl/certs/ca-bundle.crt
 
       substituteInPlace subprojects/ppm.wrap \
-          --replace-fail 'revision = head' 'revision = v${finalAttrs.pluginManagerVersion}'
+        --replace-fail 'revision = head' 'revision = v${finalAttrs.pluginManagerVersion}'
+      substituteInPlace subprojects/linenoise.wrap \
+        --replace-fail 'revision = master' 'revision = ${finalAttrs.linenoiseRev}'
 
       ${lib.getExe meson} subprojects download \
-          colors widget plugins ppm
+          colors linenoise plugins ppm widget
 
       find subprojects -type d -name .git -prune -execdir rm -r {} +
     '';
 
-    hash = "sha256-rJEUTLjMTv19W1wSvW2HJaxHrzrBQHiG74v8XlcqgMc=";
+    hash = "sha256-/rCDtUSBQaNsmzcIwWy+VBuMJHEbVXpn+a1Gz3bC6DU=";
   };
 
   strictDeps = true;
@@ -60,18 +65,22 @@ stdenv.mkDerivation (finalAttrs: {
   buildInputs = [
     freetype
     libgit2
+    libkqueue # optional
     libuchardet
     libzip
     lua5_4
     luajit
-    mbedtls_2
+    mbedtls
     pcre2
-    SDL2
+    sdl3
+    sdl3-image
     xz
     zlib
   ];
 
-  mesonFlags = [ "-Duse_system_lua=true" ];
+  mesonFlags = [
+    (lib.mesonBool "use_system_lua" true)
+  ];
 
   meta = {
     changelog = "https://github.com/pragtical/pragtical/blob/${finalAttrs.src.rev}/changelog.md";

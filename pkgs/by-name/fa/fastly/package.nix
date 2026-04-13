@@ -1,5 +1,6 @@
 {
   lib,
+  stdenv,
   fetchurl,
   fetchFromGitHub,
   installShellFiles,
@@ -9,15 +10,15 @@
   viceroy,
 }:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "fastly";
-  version = "11.4.0";
+  version = "14.3.0";
 
   src = fetchFromGitHub {
     owner = "fastly";
     repo = "cli";
-    tag = "v${version}";
-    hash = "sha256-jfj37b3L3LcPODBYBAOTWq+mA0xrIr3r+6lu65gKyYI=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-lUhBSx6iPKk4j4jkSaSM4UrJkX84XJVgziayRlZ7bcg=";
     # The git commit is part of the `fastly version` original output;
     # leave that output the same in nixpkgs. Use the `.git` directory
     # to retrieve the commit SHA, and remove the directory afterwards,
@@ -34,7 +35,7 @@ buildGoModule rec {
     "cmd/fastly"
   ];
 
-  vendorHash = "sha256-souo+yksoZpUxWfY7flL4uLdRgAIrtZKRIlGK0p1hZs=";
+  vendorHash = "sha256-XzfsPSG0gEXhlAF9O3VGNn8FGXlvXFxqX7kffQDdsRA=";
 
   nativeBuildInputs = [
     installShellFiles
@@ -46,7 +47,7 @@ buildGoModule rec {
   ldflags = [
     "-s"
     "-w"
-    "-X github.com/fastly/cli/pkg/revision.AppVersion=v${version}"
+    "-X github.com/fastly/cli/pkg/revision.AppVersion=v${finalAttrs.version}"
     "-X github.com/fastly/cli/pkg/revision.Environment=release"
     "-X github.com/fastly/cli/pkg/revision.GoHostOS=${go.GOHOSTOS}"
     "-X github.com/fastly/cli/pkg/revision.GoHostArch=${go.GOHOSTARCH}"
@@ -68,22 +69,21 @@ buildGoModule rec {
       --set FASTLY_VICEROY_USE_PATH 1
   '';
 
-  postInstall = ''
+  postInstall = lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
     export HOME="$(mktemp -d)"
     installShellCompletion --cmd fastly \
       --bash <($out/bin/fastly --completion-script-bash) \
       --zsh <($out/bin/fastly --completion-script-zsh)
   '';
 
-  meta = with lib; {
+  meta = {
     description = "Command line tool for interacting with the Fastly API";
     homepage = "https://github.com/fastly/cli";
-    changelog = "https://github.com/fastly/cli/blob/v${version}/CHANGELOG.md";
-    license = licenses.asl20;
-    maintainers = with maintainers; [
+    changelog = "https://github.com/fastly/cli/blob/v${finalAttrs.version}/CHANGELOG.md";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [
       ereslibre
-      shyim
     ];
     mainProgram = "fastly";
   };
-}
+})

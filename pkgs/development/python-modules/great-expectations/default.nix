@@ -40,14 +40,14 @@
 
 buildPythonPackage rec {
   pname = "great-expectations";
-  version = "1.3.2";
+  version = "1.11.1";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "great-expectations";
     repo = "great_expectations";
     tag = version;
-    hash = "sha256-MV6T8PyOyAQ2SfT8B38YdCtqj6oeZCW+z08koBR739A=";
+    hash = "sha256-8yKuEVupqbwlBGeUDu25pvGltybljkmpbkcbC+G+/VI=";
   };
 
   postPatch = ''

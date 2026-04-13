@@ -20,7 +20,7 @@ let
 
   activationScript = ''
     # will be rebuilt automatically
-    rm -fv "$HOME/.cache/ksycoca"*
+    rm -fv "''${XDG_CACHE_HOME:-$HOME/.cache}/ksycoca"*
   '';
 in
 {
@@ -68,13 +68,6 @@ in
   ];
 
   config = mkIf cfg.enable {
-    assertions = [
-      {
-        assertion = cfg.enable -> !config.services.xserver.desktopManager.plasma5.enable;
-        message = "Cannot enable plasma5 and plasma6 at the same time!";
-      }
-    ];
-
     qt.enable = true;
     programs.xwayland.enable = true;
     environment.systemPackages =
@@ -98,6 +91,7 @@ in
           kio-admin # managing files as admin
           kio-extras # stuff for MTP, AFC, etc
           kio-fuse # fuse interface for KIO
+          knighttime # night mode switching daemon
           kpackage # provides kpackagetool tool
           kservice # provides kbuildsycoca6 tool
           kunifiedpush # provides a background service and a KCM
@@ -173,15 +167,17 @@ in
           spectacle
           ffmpegthumbs
           krdp
-          xwaylandvideobridge # exposes Wayland windows to X11 screen capture
+          kconfig # required for xdg-terminal from xdg-utils
+          qtbase # for qtpaths which is required for xdg-mime from xdg-utils
         ]
+        ++ lib.optional config.networking.networkmanager.enable qrca
         ++ lib.optionals config.hardware.sensor.iio.enable [
           # This is required for autorotation in Plasma 6
           qtsensors
         ]
-        ++ lib.optionals config.services.flatpak.enable [
+        ++ lib.optionals (config.services.flatpak.enable || config.services.fwupd.enable) [
           # Since PackageKit Nix support is not there yet,
-          # only install discover if flatpak is enabled.
+          # only install discover if flatpak or fwupd is enabled.
           discover
         ];
       in
@@ -190,7 +186,7 @@ in
       ++ lib.optionals config.services.desktopManager.plasma6.enableQt5Integration [
         breeze.qt5
         plasma-integration.qt5
-        pkgs.plasma5Packages.kwayland-integration
+        kwayland-integration
         (
           # Only symlink the KIO plugins, so we don't accidentally pull any services
           # like KCMs or kcookiejar
@@ -217,6 +213,7 @@ in
       ++ lib.optional config.services.pipewire.pulse.enable plasma-pa
       ++ lib.optional config.powerManagement.enable powerdevil
       ++ lib.optional config.services.printing.enable print-manager
+      ++ lib.optional config.hardware.sane.enable skanpage
       ++ lib.optional config.services.colord.enable colord-kde
       ++ lib.optional config.services.hardware.bolt.enable plasma-thunderbolt
       ++ lib.optional config.services.samba.enable kdenetwork-filesharing
@@ -274,6 +271,8 @@ in
     services.udisks2.enable = true;
     services.upower.enable = config.powerManagement.enable;
     services.libinput.enable = mkDefault true;
+    services.geoclue2.enable = mkDefault true;
+    services.fwupd.enable = mkDefault true;
 
     # Extra UDEV rules used by Solid
     services.udev.packages = [
@@ -302,7 +301,7 @@ in
     services.orca.enable = mkDefault true;
 
     services.displayManager = {
-      sessionPackages = [ kdePackages.plasma-workspace ];
+      sessionPackages = [ kdePackages.plasma-workspace.sessions ];
       defaultSession = mkDefault "plasma";
     };
     services.displayManager.sddm = {
@@ -333,9 +332,19 @@ in
           enable = true;
           package = kdePackages.kwallet-pam;
         };
+        # "kde" must not have fingerprint authentication otherwise it can block password login.
+        # See https://github.com/NixOS/nixpkgs/issues/239770 and https://invent.kde.org/plasma/kscreenlocker/-/merge_requests/163.
+        fprintAuth = false;
+        p11Auth = false;
       };
-      kde-fingerprint = lib.mkIf config.services.fprintd.enable { fprintAuth = true; };
-      kde-smartcard = lib.mkIf config.security.pam.p11.enable { p11Auth = true; };
+      kde-fingerprint = lib.mkIf config.services.fprintd.enable {
+        fprintAuth = true;
+        p11Auth = false;
+      };
+      kde-smartcard = lib.mkIf config.security.pam.p11.enable {
+        p11Auth = true;
+        fprintAuth = false;
+      };
     };
 
     security.wrappers = {

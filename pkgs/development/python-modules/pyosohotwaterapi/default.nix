@@ -8,6 +8,7 @@
   setuptools,
   unasync,
   urllib3,
+  writableTmpDirAsHomeHook,
 }:
 
 buildPythonPackage rec {
@@ -25,6 +26,7 @@ buildPythonPackage rec {
   build-system = [
     setuptools
     unasync
+    writableTmpDirAsHomeHook
   ];
 
   dependencies = [
@@ -34,20 +36,16 @@ buildPythonPackage rec {
     urllib3
   ];
 
-  preBuild = ''
-    export HOME=$(mktemp -d)
-  '';
-
   # Module has no tests
   doCheck = false;
 
   pythonImportsCheck = [ "apyosoenergyapi" ];
 
-  meta = with lib; {
+  meta = {
     description = "Module for using the OSO Hotwater API";
     homepage = "https://github.com/osohotwateriot/apyosohotwaterapi";
     changelog = "https://github.com/osohotwateriot/apyosohotwaterapi/releases/tag/${src.tag}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
 }

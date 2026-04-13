@@ -6,15 +6,15 @@
   cmake,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "json-fortran";
-  version = "9.0.4";
+  version = "9.3.0";
 
   src = fetchFromGitHub {
     owner = "jacobwilliams";
     repo = "json-fortran";
-    rev = version;
-    hash = "sha256-tLDs/yh9xMfZd2m+jD6Mm3Lr4asI4SrBDOAU2vN5OfA=";
+    rev = finalAttrs.version;
+    hash = "sha256-shSMIiA2laNxqRmnsBBOgJDhWdXr/ULEWVkugHCEs+0=";
   };
 
   nativeBuildInputs = [
@@ -33,11 +33,11 @@ stdenv.mkDerivation rec {
     rm -r $out/nix
   '';
 
-  meta = with lib; {
+  meta = {
     description = "Modern Fortran JSON API";
     homepage = "https://github.com/jacobwilliams/json-fortran";
-    license = licenses.mit;
-    platforms = platforms.linux;
-    maintainers = [ maintainers.sheepforce ];
+    license = lib.licenses.mit;
+    platforms = lib.platforms.linux;
+    maintainers = [ lib.maintainers.sheepforce ];
   };
-}
+})

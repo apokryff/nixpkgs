@@ -10,25 +10,23 @@
   pytest-mock,
   pytest-cov-stub,
   pytestCheckHook,
-  pythonOlder,
   requests,
   requests-mock,
   responses,
   rich,
+  writableTmpDirAsHomeHook,
 }:
 
 buildPythonPackage rec {
   pname = "censys";
-  version = "2.2.18";
+  version = "2.2.19";
   pyproject = true;
-
-  disabled = pythonOlder "3.7";
 
   src = fetchFromGitHub {
     owner = "censys";
     repo = "censys-python";
     tag = "v${version}";
-    hash = "sha256-fHqDXqhjqfj8VBb7Od7wuUXAEHQBXwm5LAUPLM0oN2Q=";
+    hash = "sha256-3eQtGCIKtjpDWfyrIEPZnA6xLMNl0cg61wh0nuwNwh4=";
   };
 
   build-system = [ poetry-core ];
@@ -48,28 +46,22 @@ buildPythonPackage rec {
     pytestCheckHook
     requests-mock
     responses
-  ];
-
-  pythonRelaxDeps = [
-    "backoff"
-    "requests"
-    "rich"
+    writableTmpDirAsHomeHook
   ];
 
   # The tests want to write a configuration file
   preCheck = ''
-    export HOME=$(mktemp -d)
     mkdir -p $HOME
   '';
 
   pythonImportsCheck = [ "censys" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python API wrapper for the Censys Search Engine (censys.io)";
     homepage = "https://github.com/censys/censys-python";
-    changelog = "https://github.com/censys/censys-python/releases/tag/v${version}";
-    license = with licenses; [ asl20 ];
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/censys/censys-python/releases/tag/v${src.tag}";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ fab ];
     mainProgram = "censys";
   };
 }

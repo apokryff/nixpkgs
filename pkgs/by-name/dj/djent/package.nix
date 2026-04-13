@@ -5,14 +5,14 @@
   mpfr,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "djent";
   version = "1.0";
 
   src = fetchFromGitHub {
     owner = "dj-on-github";
     repo = "djent";
-    rev = "${version}";
+    rev = "${finalAttrs.version}";
     hash = "sha256-inMh7l/6LlrVnIin+L+fj+4Lchk0Xvt09ngVrCuvphE=";
   };
 
@@ -38,7 +38,7 @@ stdenv.mkDerivation rec {
   meta = {
     homepage = "http://www.deadhat.com/";
     description = ''
-      A reimplementation of the Fourmilab/John Walker random number test program
+      Reimplementation of the Fourmilab/John Walker random number test program
       ent with several improvements
     '';
     mainProgram = "djent";
@@ -49,4 +49,4 @@ stdenv.mkDerivation rec {
       thillux
     ];
   };
-}
+})

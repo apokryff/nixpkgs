@@ -9,7 +9,9 @@ By default, Nix will prevent installation if any of the following criteria are t
 
 -   The package's `meta.license` is set to a license which is considered to be unfree.
 
--   The package has known security vulnerabilities but has not or can not be updated for some reason, and a list of issues has been entered in to the package's `meta.knownVulnerabilities`.
+-   The package has known security vulnerabilities but has not or can not be updated for some reason, and a list of issues has been entered into the package's `meta.knownVulnerabilities`.
+
+-   There are problems for packages which must be acknowledged, e.g. deprecation notices.
 
 Each of these criteria can be altered in the Nixpkgs configuration.
 
@@ -31,7 +33,7 @@ Most unfree licenses prohibit either executing or distributing the software.
 
 ## Installing broken packages {#sec-allow-broken}
 
-There are two ways to try compiling a package which has been marked as broken.
+There are several ways to try compiling a package which has been marked as broken.
 
 -   For allowing the build of a broken package once, you can use an environment variable for a single invocation of the nix tools:
 
@@ -39,7 +41,15 @@ There are two ways to try compiling a package which has been marked as broken.
     $ export NIXPKGS_ALLOW_BROKEN=1
     ```
 
--   For permanently allowing broken packages to be built, you may add `allowBroken = true;` to your user's configuration file, like this:
+-   For permanently allowing broken packages with a specific name to be built, you may add a corresponding `problems.handlers` to your user's configuration file, for example:
+
+    ```nix
+    {
+      problems.handlers.hello.broken = "warn"; # or "ignore"
+    }
+    ```
+
+-   For permanently allowing all broken packages to be built, you may add `allowBroken = true;` to your user's configuration file, like this:
 
     ```nix
     { allowBroken = true; }
@@ -87,7 +97,7 @@ There are several ways to tweak how Nix handles a package which has been marked 
     { allowUnfreePredicate = (pkg: false); }
     ```
 
-    For a more useful example, try the following. This configuration only allows unfree packages named roon-server and visual studio code:
+    For a more useful example, try the following. This configuration only allows unfree packages named roon-server and Visual Studio Code:
 
     ```nix
     {
@@ -157,6 +167,58 @@ There are several ways to tweak how Nix handles a package which has been marked 
     ```
 
     Note that `permittedInsecurePackages` is only checked if `allowInsecurePredicate` is not specified.
+
+## Packages with problems {#sec-problems}
+
+A package may have several problems associated with it.
+These can be either manually declared in `meta.problems`, or automatically generated from its other `meta` attributes.
+Each problem has a name, a "kind", a message, and optionally a list of URLs.
+Not all kinds can be manually specified in `meta.problems`, and some kinds can exist only up to once per package.
+Currently, the following problem kinds are known (with more reserved to be added in the future):
+
+- "removal": The package is planned to be removed some time in the future. Unique.
+- "deprecated": The package relies on software which has reached its end of life.
+- "maintainerless": Automatically generated for packages with `meta.maintainers == []`. Unique, not manually specifiable.
+- "broken": Automatically generated for packages with `meta.broken = true`.
+
+Each problem has a handler that deals with it, which can be one of "error", "warn" or "ignore".
+"error" will disallow evaluating a package, while "warn" will simply print a message to the log.
+
+The handler for problems can be specified using `config.problems.handlers.${packageName}.${problemName} = "${handler}";`.
+
+There is also the possibility to specify some generic matchers, which can set a handler for more than a specific problem of a specific package.
+This works through the `config.problems.matchers` option:
+
+```nix
+{
+  problems.matchers = [
+    # Fail to build any packages which are about to be removed anyway
+    {
+      kind = "removal";
+      handler = "error";
+    }
+
+    # Get warnings when using packages with no declared maintainers
+    {
+      kind = "maintainerless";
+      handler = "warn";
+    }
+
+    # You deeply care about this package and want to absolutely know when it has any problems
+    {
+      package = "hello";
+      handler = "error";
+    }
+  ];
+}
+```
+
+Matchers can match one or more of package name, problem name or problem kind.
+If multiple conditions are present, all must be met to match.
+If multiple matchers match a problem, then the highest severity handler will be chosen.
+The current default value contains `{ kind = "removal"; handler = "warn"; }`, meaning that people will be notified about package removals in advance.
+
+Package names for both `problems.handlers` and `problems.matchers` are taken from `lib.getName`, which looks at the `pname` first and falls back to extracting the "pname" part from the `name` attribute.
 
 ## Modify packages via `packageOverrides` {#sec-modify-via-packageOverrides}
 
@@ -241,7 +303,7 @@ To install it into our environment, you can just run `nix-env -iA nixpkgs.myPack
 }
 ```
 
-`pathsToLink` tells Nixpkgs to only link the paths listed which gets rid of the extra stuff in the profile. `/bin` and `/share` are good defaults for a user environment, getting rid of the clutter. If you are running on Nix on MacOS, you may want to add another path as well, `/Applications`, that makes GUI apps available.
+`pathsToLink` tells Nixpkgs to only link the paths listed which gets rid of the extra stuff in the profile. `/bin` and `/share` are good defaults for a user environment, getting rid of the clutter. If you are running on Nix on macOS, you may want to add another path as well, `/Applications`, that makes GUI apps available.
 
 ### Getting documentation {#sec-getting-documentation}
 

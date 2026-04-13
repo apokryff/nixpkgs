@@ -6,23 +6,23 @@
   stdenv,
 }:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "auth0-cli";
-  version = "1.17.0";
+  version = "1.28.0";
 
   src = fetchFromGitHub {
     owner = "auth0";
     repo = "auth0-cli";
-    tag = "v${version}";
-    hash = "sha256-Tt+7uWQ7SAC6R/gnvJDBkdLjXA60s1H5YSU8IPTNSnc=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-FqMfnousaJg0u8W3o2lR8REIGFThq3vhsQFN1Je65Q8=";
   };
 
-  vendorHash = "sha256-oyHERi5dpq/fEAgJ/RDapfDY918g3+VqFfqPpQDh+Cg=";
+  vendorHash = "sha256-PrcGZ1UJb9fsp7ZsAAxH5VzumDwn/mkyoKVvniuPQrg=";
 
   ldflags = [
     "-s"
     "-w"
-    "-X=github.com/auth0/auth0-cli/internal/buildinfo.Version=v${version}"
+    "-X=github.com/auth0/auth0-cli/internal/buildinfo.Version=v${finalAttrs.version}"
     "-X=github.com/auth0/auth0-cli/internal/buildinfo.Revision=0000000"
   ];
 
@@ -47,12 +47,14 @@ buildGoModule rec {
 
   subPackages = [ "cmd/auth0" ];
 
+  __darwinAllowLocalNetworking = true;
+
   meta = {
     description = "Supercharge your developer workflow";
     homepage = "https://auth0.github.io/auth0-cli";
-    changelog = "https://github.com/auth0/auth0-cli/releases/tag/v${version}";
+    changelog = "https://github.com/auth0/auth0-cli/releases/tag/v${finalAttrs.version}";
     license = lib.licenses.mit;
     maintainers = with lib.maintainers; [ matthewcroughan ];
     mainProgram = "auth0";
   };
-}
+})

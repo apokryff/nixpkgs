@@ -4,29 +4,40 @@
   fetchFromGitHub,
   nix-update-script,
   nixosTests,
+  withServer ? true,
+  withVlAgent ? false,
 }:
 
 buildGoModule (finalAttrs: {
   pname = "VictoriaLogs";
-  version = "1.26.0";
+  version = "1.49.0";
 
   src = fetchFromGitHub {
     owner = "VictoriaMetrics";
     repo = "VictoriaLogs";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-PnXpu2Dna5grozKOGRHi/Gic7djszYh7wJ96EiEYP8U=";
+    hash = "sha256-7qpI9EjHh5XddXXx4QuGt+h5Rwcj6Me+mpZDbnCGbio=";
   };
 
   vendorHash = null;
+  env.CGO_ENABLED = 0;
 
-  subPackages = [
-    "app/victoria-logs"
-    "app/vlinsert"
-    "app/vlselect"
-    "app/vlstorage"
-    "app/vlogsgenerator"
-    "app/vlogscli"
-  ];
+  subPackages =
+    lib.optionals withServer [
+      "app/victoria-logs"
+      "app/vlinsert"
+      "app/vlselect"
+      "app/vlstorage"
+      "app/vlogsgenerator"
+      "app/vlogscli"
+    ]
+    ++ lib.optionals withVlAgent [ "app/vlagent" ];
+
+  postPatch = ''
+    # Relax go version to major.minor
+    sed -i -E 's/^(go[[:space:]]+[[:digit:]]+\.[[:digit:]]+)\.[[:digit:]]+$/\1/' go.mod
+    sed -i -E 's/^(## explicit; go[[:space:]]+[[:digit:]]+\.[[:digit:]]+)\.[[:digit:]]+$/\1/' vendor/modules.txt
+  '';
 
   ldflags = [
     "-s"
@@ -37,11 +48,7 @@ buildGoModule (finalAttrs: {
   __darwinAllowLocalNetworking = true;
 
   passthru = {
-    tests = {
-      inherit (nixosTests)
-        victorialogs
-        ;
-    };
+    tests = lib.recurseIntoAttrs nixosTests.victorialogs;
     updateScript = nix-update-script { };
   };
 
@@ -49,7 +56,10 @@ buildGoModule (finalAttrs: {
     homepage = "https://docs.victoriametrics.com/victorialogs/";
     description = "User friendly log database from VictoriaMetrics";
     license = lib.licenses.asl20;
-    maintainers = with lib.maintainers; [ marie ];
+    maintainers = with lib.maintainers; [
+      marie
+      shawn8901
+    ];
     changelog = "https://github.com/VictoriaMetrics/VictoriaLogs/releases/tag/${finalAttrs.src.tag}";
     mainProgram = "victoria-logs";
   };

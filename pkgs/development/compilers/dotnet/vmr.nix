@@ -1,14 +1,14 @@
 {
-  clangStdenv,
+  llvmPackages_20,
   lib,
   fetchurl,
+  fetchpatch,
   dotnetCorePackages,
   jq,
   curl,
   git,
   cmake,
   pkg-config,
-  llvm,
   zlib,
   icu,
   lttng-ust_2_12,
@@ -24,6 +24,7 @@
   xmlstarlet,
   nodejs,
   cpio,
+  ninja,
   callPackage,
   unzip,
   yq,
@@ -33,10 +34,13 @@
   bootstrapSdk,
   releaseManifestFile,
   tarballHash,
+  hasRuntime,
 }:
 
 let
-  stdenv = if clangStdenv.hostPlatform.isDarwin then swiftPackages.stdenv else clangStdenv;
+  llvmPackages = llvmPackages_20;
+
+  stdenv = llvmPackages.stdenv;
 
   inherit (stdenv)
     isLinux
@@ -47,7 +51,8 @@ let
   inherit (swiftPackages) swift;
 
   releaseManifest = lib.importJSON releaseManifestFile;
-  inherit (releaseManifest) release sourceRepository tag;
+  inherit (releaseManifest) sourceRepository tag;
+  release = releaseManifest.${if hasRuntime then "release" else "sdkVersion"};
 
   buildRid = dotnetCorePackages.systemToDotnetRid buildPlatform.system;
   targetRid = dotnetCorePackages.systemToDotnetRid targetPlatform.system;
@@ -57,10 +62,11 @@ let
 
   _icu = if isDarwin then darwin.ICU else icu;
 
-in
-stdenv.mkDerivation rec {
-  pname = "${baseName}-vmr";
   version = release;
+in
+stdenv.mkDerivation {
+  pname = "${baseName}-vmr";
+  inherit version;
 
   # TODO: fix this in the binary sdk packages
   preHook = lib.optionalString stdenv.hostPlatform.isDarwin ''
@@ -92,6 +98,9 @@ stdenv.mkDerivation rec {
   ++ lib.optionals (lib.versionAtLeast version "10") [
     cpio
   ]
+  ++ lib.optionals (lib.versionAtLeast version "11") [
+    ninja
+  ]
   ++ lib.optionals isDarwin [
     getconf
   ];
@@ -100,7 +109,7 @@ stdenv.mkDerivation rec {
     # this gets copied into the tree, but we still need the sandbox profile
     bootstrapSdk
     # the propagated build inputs in llvm.dev break swift compilation
-    llvm.out
+    llvmPackages.llvm.out
     zlib
     _icu
     openssl
@@ -140,11 +149,12 @@ stdenv.mkDerivation rec {
       ./fix-aspnetcore-portable-build.patch
       ./vmr-compiler-opt-v8.patch
     ]
-    ++ lib.optionals (lib.versionAtLeast version "10") [
-      # src/repos/projects/Directory.Build.targets(106,5): error MSB4018: The "AddSourceToNuGetConfig" task failed unexpectedly.
-      # src/repos/projects/Directory.Build.targets(106,5): error MSB4018: System.Xml.XmlException->Microsoft.Build.Framework.BuildException.GenericBuildTransferredException: There are multiple root elements. Line 9, position 2.
-      ./source-build-externals-overwrite-rather-than-append-.patch
-    ];
+    ++ lib.optionals (lib.versionAtLeast version "11") (
+      [
+        ./fix-skiperroronprebuilts.patch
+      ]
+      ++ lib.optional isDarwin ./fix-cmake-darwin.patch
+    );
 
   postPatch = ''
     # set the sdk version in global.json to match the bootstrap sdk
@@ -178,26 +188,22 @@ stdenv.mkDerivation rec {
       -s \$prev -t elem -n NoWarn -v '$(NoWarn);AD0001' \
       src/source-build-reference-packages/src/referencePackages/Directory.Build.props
 
+  ''
+  + lib.optionalString (lib.versionOlder version "10") ''
     # https://github.com/microsoft/ApplicationInsights-dotnet/issues/2848
     xmlstarlet ed \
       --inplace \
       -u //_:Project/_:PropertyGroup/_:BuildNumber -v 0 \
-      src/source-build-externals/src/${lib.optionalString (lib.versionAtLeast version "10") "repos/src/"}application-insights/.props/_GlobalStaticVersion.props
+      src/source-build-externals/src/application-insights/.props/_GlobalStaticVersion.props
+  ''
+  + lib.optionalString hasRuntime ''
 
     # this fixes compile errors with clang 15 (e.g. darwin)
     substituteInPlace \
       src/runtime/src/native/libs/CMakeLists.txt \
       --replace-fail 'add_compile_options(-Weverything)' 'add_compile_options(-Wall)'
-
-    # strip native symbols in runtime
-    # see: https://github.com/dotnet/source-build/issues/2543
-    xmlstarlet ed \
-      --inplace \
-      -s //Project -t elem -n PropertyGroup \
-      -s \$prev -t elem -n KeepNativeSymbols -v false \
-      src/runtime/Directory.Build.props
   ''
-  + lib.optionalString (lib.versionAtLeast version "9") (
+  + lib.optionalString (lib.versionAtLeast version "9" && hasRuntime) (
     ''
       # repro.csproj fails to restore due to missing freebsd packages
       xmlstarlet ed \
@@ -247,7 +253,7 @@ stdenv.mkDerivation rec {
         src/aspnetcore/eng/DotNetBuild.props
     ''
   )
-  + lib.optionalString isLinux (
+  + lib.optionalString (isLinux && hasRuntime) (
     ''
       substituteInPlace \
         src/runtime/src/native/libs/System.Security.Cryptography.Native/opensslshim.c \
@@ -274,7 +280,7 @@ stdenv.mkDerivation rec {
         --replace-warn 'libicui18nName[64]' 'libicui18nName[256]'
     ''
   )
-  + lib.optionalString isDarwin (
+  + lib.optionalString (isDarwin && hasRuntime) (
     ''
       substituteInPlace \
         src/runtime/src/native/libs/System.Globalization.Native/CMakeLists.txt \
@@ -299,7 +305,7 @@ stdenv.mkDerivation rec {
         -s \$prev -t elem -n SkipInstallerBuild -v true \
         src/runtime/Directory.Build.props
     ''
-    + lib.optionalString (lib.versionAtLeast version "10") ''
+    + lib.optionalString (lib.versionAtLeast version "10" && hasRuntime) ''
       xmlstarlet ed \
         --inplace \
         -s //Project -t elem -n PropertyGroup \
@@ -321,7 +327,9 @@ stdenv.mkDerivation rec {
       substituteInPlace \
         src/runtime/src/coreclr/nativeaot/BuildIntegration/Microsoft.NETCore.Native.targets \
     ''
-    + lib.optionalString (lib.versionAtLeast version "9") "  src/runtime/src/native/managed/native-library.targets \\\n"
+    + lib.optionalString (
+      lib.versionAtLeast version "9" && hasRuntime
+    ) "  src/runtime/src/native/managed/native-library.targets \\\n"
     + ''
         --replace-fail ' -no_code_signature_warning' ""
 
@@ -329,9 +337,11 @@ stdenv.mkDerivation rec {
       substituteInPlace \
         src/runtime/src/coreclr/nativeaot/BuildIntegration/Microsoft.NETCore.Native.Unix.targets \
     ''
-    + lib.optionalString (lib.versionOlder version "10") "  src/runtime/src/coreclr/tools/aot/ILCompiler/ILCompiler.csproj \\\n"
+    + lib.optionalString (
+      lib.versionOlder version "10" && hasRuntime
+    ) "  src/runtime/src/coreclr/tools/aot/ILCompiler/ILCompiler.csproj \\\n"
     + "  --replace-fail 'Include=\"-ld_classic\"' \"\"\n"
-    + lib.optionalString (lib.versionOlder version "9") ''
+    + lib.optionalString (lib.versionOlder version "9" && hasRuntime) ''
       # [...]/build.proj(123,5): error : Did not find PDBs for the following SDK files:
       # [...]/build.proj(123,5): error : sdk/8.0.102/System.Resources.Extensions.dll
       # [...]/build.proj(123,5): error : sdk/8.0.102/System.CodeDom.dll
@@ -352,7 +362,6 @@ stdenv.mkDerivation rec {
     "--no-prebuilts"
     "--with-packages"
     bootstrapSdk.artifacts
-
   ]
   # https://github.com/dotnet/source-build/issues/5286#issuecomment-3097872768
   ++ lib.optional (lib.versionAtLeast version "10") "-p:SkipArcadeSdkImport=true";
@@ -373,15 +382,24 @@ stdenv.mkDerivation rec {
     ''
     + lib.optionalString (lib.versionAtLeast version "10") ''
       dotnet nuget add source "${bootstrapSdk.artifacts}"
-      dotnet nuget add source "${bootstrapSdk.artifacts}/SourceBuildReferencePackages"
     ''
     + ''
       ${prepScript} $prepFlags
+    ''
+    + lib.optionalString (!hasRuntime) ''
+      mkdir .shared-components
+      cp -r "${bootstrapSdk.artifacts}"/* .shared-components/
+      chmod +w -R .shared-components/
+      # zip dependencies unzipped in bootstrap installPhase, so they can be found
+      find .shared-components/assets . -name \*.tar -exec gzip -f --fast {} \;
+      buildFlags+=\ --with-shared-components\ "$PWD"/.shared-components
+    ''
+    + ''
 
       runHook postConfigure
     '';
 
-  postConfigure = lib.optionalString (lib.versionAtLeast version "9") ''
+  postConfigure = lib.optionalString (lib.versionAtLeast version "9" && hasRuntime) ''
     # see patch-npm-packages.proj
     typeset -f isScript patchShebangs > src/aspnetcore/patch-shebangs.sh
   '';
@@ -391,7 +409,13 @@ stdenv.mkDerivation rec {
 
   # https://github.com/NixOS/nixpkgs/issues/38991
   # bash: warning: setlocale: LC_ALL: cannot change locale (en_US.UTF-8)
-  LOCALE_ARCHIVE = lib.optionalString isLinux "${glibcLocales}/lib/locale/locale-archive";
+  LOCALE_ARCHIVE = lib.optionalString (
+    isLinux && glibcLocales != null
+  ) "${glibcLocales}/lib/locale/locale-archive";
+
+  # clang: error: argument unused during compilation: '-Wa,--compress-debug-sections' [-Werror,-Wunused-command-line-argument]
+  # caused by separateDebugInfo
+  NIX_CFLAGS_COMPILE = "-Wno-unused-command-line-argument";
 
   buildFlags = [
     "--with-packages"
@@ -407,7 +431,12 @@ stdenv.mkDerivation rec {
     "--"
     "-p:PortableBuild=true"
   ]
-  ++ lib.optional (targetRid != buildRid) "-p:TargetRid=${targetRid}";
+  ++ lib.optional (targetRid != buildRid) "-p:TargetRid=${targetRid}"
+  # https://github.com/dotnet/source-build/issues/5521
+  ++ lib.optionals (version == "11.0.0-preview.2") [
+    "--branding"
+    "repodefault "
+  ];
 
   buildPhase = ''
     runHook preBuild
@@ -447,11 +476,11 @@ stdenv.mkDerivation rec {
     ''
       runHook preInstall
 
-      mkdir "$out"
+      mkdir -p "$out"/lib
 
       pushd "artifacts/${assets}/Release"
       find . -name \*.tar.gz | while read archive; do
-        target=$out/$(basename "$archive" .tar.gz)
+        target=$out/lib/$(basename "$archive" .tar.gz)
         # dotnet 9 currently has two copies of the sdk tarball
         [[ ! -e "$target" ]] || continue
         mkdir "$target"
@@ -459,8 +488,14 @@ stdenv.mkDerivation rec {
       done
       popd
 
+    ''
+    # unzip tarballs so we don't break dependency detection
+    + lib.optionalString (lib.versionAtLeast version "10") ''
+      find "$out"/lib/Private.SourceBuilt.Artifacts.*.${targetRid}/assets . -name \*.gz -exec gunzip {} \;
+    ''
+    + ''
       local -r unpacked="$PWD/.unpacked"
-      for nupkg in $out/Private.SourceBuilt.Artifacts.*.${targetRid}/{,SourceBuildReferencePackages/}*.nupkg; do
+      for nupkg in $out/lib/Private.SourceBuilt.Artifacts.*.${targetRid}/{,SourceBuildReferencePackages/}*.nupkg; do
           rm -rf "$unpacked"
           unzip ${unzipFlags} "$unpacked" "$nupkg"
           chmod -R +rw "$unpacked"
@@ -479,9 +514,6 @@ stdenv.mkDerivation rec {
     echo ${sigtool} > "$out"/nix-support/manual-sdk-deps
   '';
 
-  # dotnet cli is in the root, so we need to strip from there
-  # TODO: should we install in $out/share/dotnet?
-  stripDebugList = [ "." ];
   # stripping dlls results in:
   # Failed to load System.Private.CoreLib.dll (error code 0x8007000B)
   # stripped crossgen2 results in:
@@ -491,6 +523,8 @@ stdenv.mkDerivation rec {
     stripExclude=(\*.dll crossgen2)
   '';
 
+  separateDebugInfo = true;
+
   passthru = {
     inherit releaseManifest buildRid targetRid;
     icu = _icu;
@@ -498,11 +532,11 @@ stdenv.mkDerivation rec {
     hasILCompiler = lib.versionAtLeast version "9";
   };
 
-  meta = with lib; {
+  meta = {
     description = "Core functionality needed to create .NET Core projects, that is shared between Visual Studio and CLI";
     homepage = "https://dotnet.github.io/";
-    license = licenses.mit;
-    maintainers = with maintainers; [ corngood ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ corngood ];
     mainProgram = "dotnet";
     platforms = [
       "x86_64-linux"

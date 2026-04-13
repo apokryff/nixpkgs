@@ -13,14 +13,14 @@
 
 buildPythonPackage rec {
   pname = "livekit-api";
-  version = "1.0.5";
+  version = "1.1.0";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "livekit";
     repo = "python-sdks";
     tag = "api-v${version}";
-    hash = "sha256-GoVPOLA4aCC26+x9//mlmOO6tb3dczN+s1C+VtGRiRE=";
+    hash = "sha256-Z9ZyzESPUR+j9s9LXSTDx3pB+bltbqTeb8WVKaKk80A=";
   };
 
   pypaBuildFlags = [ "livekit-api" ];
@@ -47,6 +47,7 @@ buildPythonPackage rec {
   passthru.updateScript = gitUpdater { rev-prefix = "api-v"; };
 
   meta = {
+    changelog = "https://github.com/livekit/python-sdks/releases/tag/${src.tag}";
     description = "LiveKit real-time and server SDKs for Python";
     homepage = "https://github.com/livekit/python-sdks/";
     license = lib.licenses.asl20;

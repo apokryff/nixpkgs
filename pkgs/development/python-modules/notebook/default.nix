@@ -27,14 +27,14 @@
 
 buildPythonPackage rec {
   pname = "notebook";
-  version = "7.4.3";
+  version = "7.5.3";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "jupyter";
     repo = "notebook";
     tag = "v${version}";
-    hash = "sha256-DpGWBV5MeCvoGSBadObVEaYwA5kRmHj8NdVWpJ+pHjA=";
+    hash = "sha256-Kxt4dAHqJ6q/tCtvP7QRow+pTe+Qmibw4aLy+YJFcu8=";
   };
 
   postPatch = ''
@@ -54,7 +54,7 @@ buildPythonPackage rec {
 
   offlineCache = yarn-berry_3.fetchYarnBerryDeps {
     inherit src missingHashes;
-    hash = "sha256-S0lnRJ+9F1RhymlAOxo3sEJJrHYo5IWeWn80obcgVlM=";
+    hash = "sha256-OYGueULuo7L59wiqyRrsIYquRCRTCip5HaJQHZ5diMA=";
   };
 
   build-system = [
@@ -88,7 +88,7 @@ buildPythonPackage rec {
   __darwinAllowLocalNetworking = true;
 
   meta = {
-    changelog = "https://github.com/jupyter/notebook/blob/v${version}/CHANGELOG.md";
+    changelog = "https://github.com/jupyter/notebook/blob/${src.tag}/CHANGELOG.md";
     description = "Web-based notebook environment for interactive computing";
     homepage = "https://github.com/jupyter/notebook";
     license = lib.licenses.bsd3;

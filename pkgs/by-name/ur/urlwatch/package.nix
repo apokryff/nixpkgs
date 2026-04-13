@@ -4,7 +4,7 @@
   python3Packages,
 }:
 
-python3Packages.buildPythonApplication rec {
+python3Packages.buildPythonApplication (finalAttrs: {
   pname = "urlwatch";
   version = "2.29";
   pyproject = true;
@@ -12,22 +12,26 @@ python3Packages.buildPythonApplication rec {
   src = fetchFromGitHub {
     owner = "thp";
     repo = "urlwatch";
-    rev = version;
+    tag = finalAttrs.version;
     hash = "sha256-X1UR9JrQuujOIUg87W0YqfXsM3A5nttWjjJMIe3hgk8=";
   };
 
   build-system = with python3Packages; [ setuptools ];
 
   dependencies = with python3Packages; [
+    aioxmpp
+    beautifulsoup4
+    cssbeautifier
     cssselect
     jq
+    jsbeautifier
     keyring
     lxml
     markdown2
     matrix-client
     minidb
-    playwright
     platformdirs
+    playwright
     pushbullet-py
     pycodestyle
     pyyaml
@@ -39,14 +43,15 @@ python3Packages.buildPythonApplication rec {
 
   pythonImportsCheck = [ "urlwatch" ];
 
-  meta = with lib; {
+  meta = {
     description = "Tool for monitoring webpages for updates";
-    mainProgram = "urlwatch";
     homepage = "https://thp.io/2008/urlwatch/";
-    license = licenses.bsd3;
-    maintainers = with maintainers; [
+    changelog = "https://github.com/thp/urlwatch/blob/${finalAttrs.src.tag}/CHANGELOG.md";
+    license = lib.licenses.bsd3;
+    maintainers = with lib.maintainers; [
       kmein
       tv
     ];
+    mainProgram = "urlwatch";
   };
-}
+})

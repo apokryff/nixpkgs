@@ -8,8 +8,7 @@
   pkg-config,
   perl,
   texinfo,
-  texinfo6,
-  yasm,
+  nasm,
 
   # You can fetch any upstream version using this derivation by specifying version and hash
   # NOTICE: Always use this argument to override the version. Do not use overrideAttrs.
@@ -78,6 +77,7 @@
       && !isAarch32
       && !hostPlatform.isLoongArch64
       && !hostPlatform.isRiscV
+      && !(hostPlatform.isPower && hostPlatform.isBigEndian)
       && hostPlatform == buildPlatform
     ), # dynamically linked Nvidia code
   withFlite ? withFullDeps, # Voice Synthesis
@@ -86,6 +86,7 @@
   withFrei0r ? withFullDeps && withGPL, # frei0r video filtering
   withFribidi ? withHeadlessDeps, # Needed for drawtext filter
   withGme ? withFullDeps, # Game Music Emulator
+  withGmp ? withHeadlessDeps && withVersion3, # rtmp(t)e support
   withGnutls ? withHeadlessDeps,
   withGsm ? withFullDeps, # GSM de/encoder
   withHarfbuzz ? withHeadlessDeps && lib.versionAtLeast version "6.1", # Needed for drawtext filter
@@ -108,6 +109,7 @@
   withNvdec ? withHeadlessDeps && withNvcodec,
   withNvenc ? withHeadlessDeps && withNvcodec,
   withOpenal ? withFullDeps, # OpenAL 1.1 capture support
+  withOpenapv ? withHeadlessDeps && lib.versionAtLeast version "8.0", # APV encoding support
   withOpencl ? withHeadlessDeps,
   withOpencoreAmrnb ? withFullDeps && withVersion3, # AMR-NB de/encoder
   withOpencoreAmrwb ? withFullDeps && withVersion3, # AMR-WB decoder
@@ -122,7 +124,7 @@
   withQuirc ? withFullDeps && lib.versionAtLeast version "7", # QR decoding
   withRav1e ? withFullDeps, # AV1 encoder (focused on speed and safety)
   withRist ? withHeadlessDeps, # Reliable Internet Stream Transport (RIST) protocol
-  withRtmp ? withFullDeps, # RTMP[E] support
+  withRtmp ? false, # RTMP[E] support via librtmp
   withRubberband ? withFullDeps && withGPL && !stdenv.hostPlatform.isFreeBSD, # Rubberband filter
   withSamba ? withFullDeps && !stdenv.hostPlatform.isDarwin && withGPLv3, # Samba protocol
   withSdl2 ? withSmallDeps,
@@ -134,7 +136,7 @@
   withSrt ? withHeadlessDeps, # Secure Reliable Transport (SRT) protocol
   withSsh ? withHeadlessDeps, # SFTP protocol
   withSvg ? withFullDeps, # SVG protocol
-  withSvtav1 ? withHeadlessDeps && !stdenv.hostPlatform.isAarch64 && !stdenv.hostPlatform.isMinGW, # AV1 encoder/decoder (focused on speed and correctness)
+  withSvtav1 ? withHeadlessDeps && !stdenv.hostPlatform.isMinGW, # AV1 encoder/decoder (focused on speed and correctness)
   withTensorflow ? false, # Tensorflow dnn backend support (Increases closure size by ~390 MiB)
   withTheora ? withHeadlessDeps, # Theora encoder
   withTwolame ? withFullDeps, # MP2 encoding
@@ -142,9 +144,9 @@
   withV4l2 ? withHeadlessDeps && stdenv.hostPlatform.isLinux, # Video 4 Linux support
   withV4l2M2m ? withV4l2,
   withVaapi ? withHeadlessDeps && (with stdenv; isLinux || isFreeBSD), # Vaapi hardware acceleration
-  withVdpau ? withSmallDeps && !stdenv.hostPlatform.isMinGW, # Vdpau hardware acceleration
+  withVdpau ? withSmallDeps && (with stdenv; isLinux || isFreeBSD), # Vdpau hardware acceleration
   withVidStab ? withHeadlessDeps && withGPL, # Video stabilization
-  withVmaf ? withFullDeps && !stdenv.hostPlatform.isAarch64 && lib.versionAtLeast version "5", # Netflix's VMAF (Video Multi-Method Assessment Fusion)
+  withVmaf ? withFullDeps && lib.versionAtLeast version "5", # Netflix's VMAF (Video Multi-Method Assessment Fusion)
   withVoAmrwbenc ? withFullDeps && withVersion3, # AMR-WB encoder
   withVorbis ? withHeadlessDeps, # Vorbis de/encoding, native encoder exists
   withVpl ? withFullDeps && stdenv.hostPlatform.isLinux, # Hardware acceleration via intel libvpl
@@ -152,6 +154,7 @@
   withVulkan ? withHeadlessDeps && !stdenv.hostPlatform.isDarwin,
   withVvenc ? withFullDeps && lib.versionAtLeast version "7.1", # H.266/VVC encoding
   withWebp ? withHeadlessDeps, # WebP encoder
+  withWhisper ? withFullDeps && lib.versionAtLeast version "8.0", # Whisper speech recognition
   withX264 ? withHeadlessDeps && withGPL, # H.264/AVC encoder
   withX265 ? withHeadlessDeps && withGPL, # H.265/HEVC encoder
   withXavs ? withFullDeps && withGPL, # AVS encoder
@@ -206,7 +209,9 @@
   # https://github.com/NixOS/nixpkgs/pull/211834#issuecomment-1417435991)
   buildAvresample ? withHeadlessDeps && lib.versionOlder version "5", # Build avresample library
   buildAvutil ? withHeadlessDeps, # Build avutil library
-  buildPostproc ? withHeadlessDeps, # Build postproc library
+  # Libpostproc is only available on versions lower than 8.0
+  # https://code.ffmpeg.org/FFmpeg/FFmpeg/commit/8c920c4c396163e3b9a0b428dd550d3c986236aa
+  buildPostproc ? withHeadlessDeps && lib.versionOlder version "8.0", # Build postproc library
   buildSwresample ? withHeadlessDeps, # Build swresample library
   buildSwscale ? withHeadlessDeps, # Build swscale library
   withLib ?
@@ -220,10 +225,10 @@
     || buildSwscale,
   # Documentation options
   withDocumentation ? withHtmlDoc || withManPages || withPodDoc || withTxtDoc,
-  withHtmlDoc ? withHeadlessDeps, # HTML documentation pages
-  withManPages ? withHeadlessDeps, # Man documentation pages
-  withPodDoc ? withHeadlessDeps, # POD documentation pages
-  withTxtDoc ? withHeadlessDeps, # Text documentation pages
+  withHtmlDoc ? withHeadlessDeps && lib.versionAtLeast version "6", # HTML documentation pages
+  withManPages ? withHeadlessDeps && lib.versionAtLeast version "6", # Man documentation pages
+  withPodDoc ? withHeadlessDeps && lib.versionAtLeast version "6", # POD documentation pages
+  withTxtDoc ? withHeadlessDeps && lib.versionAtLeast version "6", # Text documentation pages
   # Whether a "doc" output will be produced. Note that withManPages does not produce
   # a "doc" output because its files go to "man".
   withDoc ? withDocumentation && (withHtmlDoc || withPodDoc || withTxtDoc),
@@ -254,12 +259,13 @@
   frei0r,
   fribidi,
   game-music-emu,
+  gmp,
   gnutls,
   gsm,
   harfbuzz,
   intel-media-sdk,
   kvazaar,
-  ladspaH,
+  ladspa-header,
   lame,
   lcevcdec,
   lcms2,
@@ -304,15 +310,16 @@
   libvpl,
   libvpx,
   libwebp,
-  libX11,
+  libx11,
   libxcb,
-  libXext,
+  libxext,
   libxml2,
-  libXv,
+  libxv,
   nv-codec-headers,
   nv-codec-headers-12,
   ocl-icd, # OpenCL ICD
   openal,
+  openapv,
   opencl-headers, # OpenCL headers
   opencore-amr,
   openh264,
@@ -338,6 +345,7 @@
   vulkan-headers,
   vulkan-loader,
   vvenc,
+  whisper-cpp,
   x264,
   x265,
   xavs,
@@ -403,7 +411,8 @@ assert
   -> buildAvcodec && buildAvfilter && buildAvformat && (buildSwresample || buildAvresample);
 assert
   buildFfplay
-  -> buildAvcodec && buildAvformat && buildSwscale && (buildSwresample || buildAvresample);
+  ->
+    buildAvcodec && buildAvformat && buildSwscale && (buildSwresample || buildAvresample) && withSdl2;
 assert buildFfprobe -> buildAvcodec && buildAvformat;
 # Library dependencies
 assert buildAvcodec -> buildAvutil; # configure flag since 0.6
@@ -443,6 +452,11 @@ stdenv.mkDerivation (
       ]
       ++ optionals (lib.versionAtLeast version "5.1") [
         ./nvccflags-cpp14.patch
+        (fetchpatch2 {
+          name = "unbreak-hardcoded-tables.patch";
+          url = "https://git.ffmpeg.org/gitweb/ffmpeg.git/patch/1d47ae65bf6df91246cbe25c997b25947f7a4d1d";
+          hash = "sha256-ulB5BujAkoRJ8VHou64Th3E94z6m+l6v9DpG7/9nYsM=";
+        })
       ]
       ++ optionals (lib.versionAtLeast version "6.1" && lib.versionOlder version "6.2") [
         (fetchpatch2 {
@@ -450,36 +464,6 @@ stdenv.mkDerivation (
           name = "fix_build_failure_due_to_PropertyKey_EncoderID";
           url = "https://git.ffmpeg.org/gitweb/ffmpeg.git/patch/cb049d377f54f6b747667a93e4b719380c3e9475";
           hash = "sha256-sxRXKKgUak5vsQTiV7ge8vp+N22CdTIvuczNgVRP72c=";
-        })
-        (fetchpatch2 {
-          name = "CVE-2024-31582.patch";
-          url = "https://git.ffmpeg.org/gitweb/ffmpeg.git/patch/99debe5f823f45a482e1dc08de35879aa9c74bd2";
-          hash = "sha256-+CQ9FXR6Vr/AmsbXFiCUXZcxKj1s8nInEdke/Oc/kUA=";
-        })
-        (fetchpatch2 {
-          name = "CVE-2024-31578.patch";
-          url = "https://git.ffmpeg.org/gitweb/ffmpeg.git/patch/3bb00c0a420c3ce83c6fafee30270d69622ccad7";
-          hash = "sha256-oZMZysBA+/gwaGEM1yvI+8wCadXWE7qLRL6Emap3b8Q=";
-        })
-        (fetchpatch2 {
-          name = "CVE-2023-49501.patch";
-          url = "https://git.ffmpeg.org/gitweb/ffmpeg.git/patch/4adb93dff05dd947878c67784d98c9a4e13b57a7";
-          hash = "sha256-7cwktto3fPMDGvCZCVtB01X8Q9S/4V4bDLUICSNfGgw=";
-        })
-        (fetchpatch2 {
-          name = "CVE-2023-49502.patch";
-          url = "https://git.ffmpeg.org/gitweb/ffmpeg.git/patch/737ede405b11a37fdd61d19cf25df296a0cb0b75";
-          hash = "sha256-mpSJwR9TX5ENjjCKvzuM/9e1Aj/AOiQW0+72oOMl9v8=";
-        })
-        (fetchpatch2 {
-          name = "CVE-2023-50007.patch";
-          url = "https://git.ffmpeg.org/gitweb/ffmpeg.git/patch/b1942734c7cbcdc9034034373abcc9ecb9644c47";
-          hash = "sha256-v0hNcqBtm8GCGAU9UbRUCE0slodOjZCHrkS8e4TrVcQ=";
-        })
-        (fetchpatch2 {
-          name = "CVE-2023-50008.patch";
-          url = "https://git.ffmpeg.org/gitweb/ffmpeg.git/patch/5f87a68cf70dafeab2fb89b42e41a4c29053b89b";
-          hash = "sha256-sqUUSOPTPLwu2h8GbAw4SfEf+0oWioz52BcpW1n4v3Y=";
         })
       ]
       ++ optionals (lib.versionOlder version "7.1.1") [
@@ -506,7 +490,20 @@ stdenv.mkDerivation (
           hash = "sha256-DbH6ieJwDwTjKOdQ04xvRcSLeeLP2Z2qEmqeo8HsPr4=";
         })
       ]
-      ++ optionals (lib.versionOlder version "7.2") [
+      ++ optionals (lib.versionAtLeast version "7.1" && lib.versionOlder version "8.0") [
+        (fetchpatch2 {
+          name = "lcevcdec-4.0.0-compat.patch";
+          url = "https://code.ffmpeg.org/FFmpeg/FFmpeg/commit/fa23202cc7baab899894e8d22d82851a84967848.patch";
+          hash = "sha256-Ixkf1xzuDGk5t8J/apXKtghY0X9cfqSj/q987zrUuLQ=";
+        })
+      ]
+      ++ optionals (lib.versionAtLeast version "7.1.1" && lib.versionOlder version "7.1.3") [
+        (fetchpatch2 {
+          url = "https://git.ffmpeg.org/gitweb/ffmpeg.git/patch/d8ffec5bf9a2803f55cc0822a97b7815f24bee83";
+          hash = "sha256-lmSI5arShb2/W84FMnSNs3lb6rd5vWdUSzfU8oza0Ic=";
+        })
+      ]
+      ++ optionals (lib.versionOlder version "7.1.2") [
         (fetchpatch2 {
           name = "unbreak-svt-av1-3.0.0.patch";
           url = "https://git.ffmpeg.org/gitweb/ffmpeg.git/patch/d1ed5c06e3edc5f2b5f3664c80121fa55b0baa95";
@@ -570,7 +567,12 @@ stdenv.mkDerivation (
     ]
     ++ [
       (enableFeature buildAvutil "avutil")
+    ]
+    ++ optionals (lib.versionOlder version "8.0") [
+      # FFMpeg >= 8 doesn't know about the flag anymore
       (enableFeature (buildPostproc && withGPL) "postproc")
+    ]
+    ++ [
       (enableFeature buildSwresample "swresample")
       (enableFeature buildSwscale "swscale")
     ]
@@ -638,6 +640,7 @@ stdenv.mkDerivation (
       (enableFeature withFrei0r "frei0r")
       (enableFeature withFribidi "libfribidi")
       (enableFeature withGme "libgme")
+      (enableFeature withGmp "gmp")
       (enableFeature withGnutls "gnutls")
       (enableFeature withGsm "libgsm")
     ]
@@ -678,6 +681,11 @@ stdenv.mkDerivation (
       (enableFeature withNvdec "nvdec")
       (enableFeature withNvenc "nvenc")
       (enableFeature withOpenal "openal")
+    ]
+    ++ optionals (versionAtLeast version "8.0") [
+      (enableFeature withOpenapv "liboapv")
+    ]
+    ++ [
       (enableFeature withOpencl "opencl")
       (enableFeature withOpencoreAmrnb "libopencore-amrnb")
       (enableFeature withOpencoreAmrwb "libopencore-amrwb")
@@ -742,6 +750,11 @@ stdenv.mkDerivation (
     ]
     ++ [
       (enableFeature withWebp "libwebp")
+    ]
+    ++ optionals (versionAtLeast version "8.0") [
+      (enableFeature withWhisper "whisper")
+    ]
+    ++ [
       (enableFeature withX264 "libx264")
       (enableFeature withX265 "libx265")
       (enableFeature withXavs "libxavs")
@@ -768,6 +781,25 @@ stdenv.mkDerivation (
       (enableFeature withOptimisations "optimizations")
       (enableFeature withExtraWarnings "extra-warnings")
       (enableFeature withStripping "stripping")
+    ]
+    ++ optionals (stdenv.hostPlatform.isPower) [
+      # FFmpeg expects us to pass `--cpu=` to pick a specific feature set to compile for. If unset, it defaults to `generic`.
+      # For POWER, the default doesn't produce baseline-compliant settings. Passing a baseline-like CPU as a target doesn't
+      # produce entirely correct settings either - POWER4 leaves AltiVec enabled, but that's only guaranteed with POWER6.
+      # Just configure together everything on our own.
+
+      # Easy: Only ppc64le's baseline is recent enough to guarantee all of these.
+      (enableFeature (stdenv.hostPlatform.isPower64 && stdenv.hostPlatform.isLittleEndian) "altivec")
+      (enableFeature (stdenv.hostPlatform.isPower64 && stdenv.hostPlatform.isLittleEndian) "vsx")
+      (enableFeature (stdenv.hostPlatform.isPower64 && stdenv.hostPlatform.isLittleEndian) "power8")
+      (enableFeature (stdenv.hostPlatform.isPower64 && stdenv.hostPlatform.isLittleEndian) "ldbrx")
+
+      # Instructions that are highly specific to that series of 32-bit embedded CPUs. Never try to enable them.
+      (enableFeature false "ppc4xx")
+
+      # I *think* enabling this on 64-bit POWER is correct? Struggling to find much info on when/where this was introduced.
+      # Definitely present on the Apple G5, and likely Freescale e5500/e6500 as well.
+      (enableFeature (stdenv.hostPlatform.isPower64) "dcbzl")
     ]
     ++ optionals (stdenv.hostPlatform != stdenv.buildPlatform) [
       "--cross-prefix=${stdenv.cc.targetPrefix}"
@@ -803,10 +835,10 @@ stdenv.mkDerivation (
       addDriverRunpath
       perl
       pkg-config
-      yasm
     ]
+    ++ optionals stdenv.hostPlatform.isx86 [ nasm ]
     # Texinfo version 7.1 introduced breaking changes, which older versions of ffmpeg do not handle.
-    ++ (if versionOlder version "5" then [ texinfo6 ] else [ texinfo ])
+    ++ optionals (lib.versionAtLeast version "6") [ texinfo ]
     ++ optionals withCudaLLVM [ clang ]
     ++ optionals withCudaNVCC [ cuda_nvcc ];
 
@@ -851,6 +883,7 @@ stdenv.mkDerivation (
       ++ optionals withFrei0r [ frei0r ]
       ++ optionals withFribidi [ fribidi ]
       ++ optionals withGme [ game-music-emu ]
+      ++ optionals withGmp [ gmp ]
       ++ optionals withGnutls [ gnutls ]
       ++ optionals withGsm [ gsm ]
       ++ optionals withHarfbuzz [ harfbuzz ]
@@ -859,7 +892,7 @@ stdenv.mkDerivation (
       ++ optionals withJack [ libjack2 ]
       ++ optionals withJxl [ libjxl ]
       ++ optionals withKvazaar [ kvazaar ]
-      ++ optionals withLadspa [ ladspaH ]
+      ++ optionals withLadspa [ ladspa-header ]
       ++ optionals withLc3 [ liblc3 ]
       ++ optionals withLcevcdec [ lcevcdec ]
       ++ optionals withLcms2 [ lcms2 ]
@@ -874,6 +907,7 @@ stdenv.mkDerivation (
         cuda_nvcc
       ]
       ++ optionals withOpenal [ openal ]
+      ++ optionals withOpenapv [ openapv ]
       ++ optionals withOpencl [
         ocl-icd
         opencl-headers
@@ -928,6 +962,7 @@ stdenv.mkDerivation (
       ]
       ++ optionals withVvenc [ vvenc ]
       ++ optionals withWebp [ libwebp ]
+      ++ optionals withWhisper [ whisper-cpp ]
       ++ optionals withX264 [ x264 ]
       ++ optionals withX265 [ x265 ]
       ++ optionals withXavs [ xavs ]
@@ -936,9 +971,9 @@ stdenv.mkDerivation (
       ++ optionals withXevd [ xevd ]
       ++ optionals withXeve [ xeve ]
       ++ optionals withXlib [
-        libX11
-        libXv
-        libXext
+        libx11
+        libxv
+        libxext
       ]
       ++ optionals withXml2 [ libxml2 ]
       ++ optionals withXvid [ xvidcore ]
@@ -956,7 +991,8 @@ stdenv.mkDerivation (
       ];
     };
 
-    doCheck = stdenv.buildPlatform.canExecute stdenv.hostPlatform;
+    # tests linking broken with shaderc after https://github.com/NixOS/nixpkgs/pull/477464/changes/5a47b12dfcd1b909ba35778a866394430054319a
+    doCheck = stdenv.buildPlatform.canExecute stdenv.hostPlatform && !withShaderc;
 
     # Fails with SIGABRT otherwise FIXME: Why?
     checkPhase =
@@ -1014,7 +1050,7 @@ stdenv.mkDerivation (
 
     passthru.tests.pkg-config = testers.testMetaPkgConfig finalAttrs.finalPackage;
 
-    meta = with lib; {
+    meta = {
       description = "Complete, cross-platform solution to record, convert and stream audio and video";
       homepage = "https://www.ffmpeg.org/";
       changelog = "https://github.com/FFmpeg/FFmpeg/blob/n${version}/Changelog";
@@ -1026,7 +1062,7 @@ stdenv.mkDerivation (
         a corporation.
       '';
       license =
-        with licenses;
+        with lib.licenses;
         [ lgpl21Plus ]
         ++ optional withGPL gpl2Plus
         ++ optional withVersion3 lgpl3Plus
@@ -1044,10 +1080,10 @@ stdenv.mkDerivation (
         ++ optional buildPostproc "libpostproc"
         ++ optional buildSwresample "libswresample"
         ++ optional buildSwscale "libswscale";
-      platforms = platforms.all;
+      platforms = lib.platforms.all;
       # See https://github.com/NixOS/nixpkgs/pull/295344#issuecomment-1992263658
       broken = stdenv.hostPlatform.isMinGW && stdenv.hostPlatform.is64bit;
-      maintainers = with maintainers; [
+      maintainers = with lib.maintainers; [
         atemu
         jopejoe1
         emily

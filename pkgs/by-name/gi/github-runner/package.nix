@@ -16,22 +16,32 @@
   buildPackages,
   runtimeShell,
   # List of Node.js runtimes the package should support
-  nodeRuntimes ? [ "node20" ],
+  nodeRuntimes ? [
+    "node20"
+    "node24"
+  ],
   nodejs_20,
+  nodejs_24,
 }:
 
 # Node.js runtimes supported by upstream
-assert builtins.all (x: builtins.elem x [ "node20" ]) nodeRuntimes;
+assert builtins.all (
+  x:
+  builtins.elem x [
+    "node20"
+    "node24"
+  ]
+) nodeRuntimes;
 
 buildDotnetModule (finalAttrs: {
   pname = "github-runner";
-  version = "2.327.1";
+  version = "2.333.1";
 
   src = fetchFromGitHub {
     owner = "actions";
     repo = "runner";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-wTbhuBg9eIq1wGifeORTUvp9+yWDHb42J88o2Fmnrfo=";
+    hash = "sha256-5hSnveIebRQhvIHZc8sN9/8e9W1rlfITIB2uNMsQM6k=";
     leaveDotGit = true;
     postFetch = ''
       git -C $out rev-parse --short HEAD > $out/.git-revision
@@ -93,10 +103,12 @@ buildDotnetModule (finalAttrs: {
                      'true'
   '';
 
-  DOTNET_SYSTEM_GLOBALIZATION_INVARIANT = isNull glibcLocales;
-  LOCALE_ARCHIVE = lib.optionalString (
-    !finalAttrs.DOTNET_SYSTEM_GLOBALIZATION_INVARIANT
-  ) "${glibcLocales}/lib/locale/locale-archive";
+  env = {
+    DOTNET_SYSTEM_GLOBALIZATION_INVARIANT = isNull glibcLocales;
+  }
+  // lib.optionalAttrs (!isNull glibcLocales) {
+    LOCALE_ARCHIVE = "${glibcLocales}/lib/locale/locale-archive";
+  };
 
   postConfigure = ''
     # Generate src/Runner.Sdk/BuildConstants.cs
@@ -145,12 +157,16 @@ buildDotnetModule (finalAttrs: {
 
   doCheck = true;
 
+  # tests fail with sandboxing under darwin
   __darwinAllowLocalNetworking = true;
+  __noChroot = stdenv.hostPlatform.isDarwin;
 
   # Fully qualified name of disabled tests
   disabledTests = [
     "GitHub.Runner.Common.Tests.Listener.SelfUpdaterL0.TestSelfUpdateAsync"
     "GitHub.Runner.Common.Tests.ProcessInvokerL0.OomScoreAdjIsInherited"
+    # intermittently failing
+    "GitHub.Runner.Common.Tests.ProcessExtensionL0.SuccessReadProcessEnv"
   ]
   ++ map (x: "GitHub.Runner.Common.Tests.Listener.SelfUpdaterL0.TestSelfUpdateAsync_${x}") [
     "Cancel_CloneHashTask_WhenNotNeeded"
@@ -206,14 +222,13 @@ buildDotnetModule (finalAttrs: {
     # "JavaScript Actions in Alpine containers are only supported on x64 Linux runners. Detected Linux Arm64"
     "GitHub.Runner.Common.Tests.Worker.StepHostL0.DetermineNodeRuntimeVersionInAlpineContainerAsync"
     "GitHub.Runner.Common.Tests.Worker.StepHostL0.DetermineNode20RuntimeVersionInAlpineContainerAsync"
+    "GitHub.Runner.Common.Tests.Worker.StepHostL0.DetermineNode24RuntimeVersionInAlpineContainerAsync"
   ]
-  ++ lib.optionals finalAttrs.DOTNET_SYSTEM_GLOBALIZATION_INVARIANT [
-    "GitHub.Runner.Common.Tests.ProcessExtensionL0.SuccessReadProcessEnv"
+  ++ lib.optionals finalAttrs.env.DOTNET_SYSTEM_GLOBALIZATION_INVARIANT [
     "GitHub.Runner.Common.Tests.Util.StringUtilL0.FormatUsesInvariantCulture"
     "GitHub.Runner.Common.Tests.Worker.VariablesL0.Constructor_SetsOrdinalIgnoreCaseComparer"
     "GitHub.Runner.Common.Tests.Worker.WorkerL0.DispatchCancellation"
     "GitHub.Runner.Common.Tests.Worker.WorkerL0.DispatchRunNewJob"
-    "GitHub.Runner.Common.Tests.ProcessExtensionL0.SuccessReadProcessEnv"
   ];
 
   testProjectFile = [ "src/Test/Test.csproj" ];
@@ -225,6 +240,9 @@ buildDotnetModule (finalAttrs: {
   ''
   + lib.optionalString (lib.elem "node20" nodeRuntimes) ''
     ln -s ${nodejs_20} _layout/externals/node20
+  ''
+  + lib.optionalString (lib.elem "node24" nodeRuntimes) ''
+    ln -s ${nodejs_24} _layout/externals/node24
   '';
 
   postInstall = ''
@@ -266,6 +284,9 @@ buildDotnetModule (finalAttrs: {
   ''
   + lib.optionalString (lib.elem "node20" nodeRuntimes) ''
     ln -s ${nodejs_20} $out/lib/externals/node20
+  ''
+  + lib.optionalString (lib.elem "node24" nodeRuntimes) ''
+    ln -s ${nodejs_24} $out/lib/externals/node24
   ''
   + ''
     # Install Nodejs scripts called from workflows

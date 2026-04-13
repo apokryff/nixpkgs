@@ -40,6 +40,10 @@ in
         default = false;
         internal = true;
       };
+      options.boot.isNspawnContainer = lib.mkOption {
+        default = false;
+        internal = true;
+      };
     }
   ];
 
@@ -85,7 +89,7 @@ in
     };
     hostPort = mkOption {
       default = 31022;
-      type = types.int;
+      type = types.port;
       example = 22;
       description = ''
         The localhost host port to forward TCP to the guest port.
@@ -208,33 +212,40 @@ in
           ''
         );
 
-        run-builder = hostPkgs.writeShellScriptBin "run-builder" (''
+        run-builder = hostPkgs.writeShellScriptBin "run-builder" ''
           set -euo pipefail
           KEYS="''${KEYS:-./keys}"
           KEYS="$(${hostPkgs.nix}/bin/nix-store --add "$KEYS")" ${lib.getExe config.system.build.vm}
-        '');
+        '';
 
-        script = hostPkgs.writeShellScriptBin "create-builder" (''
+      in
+      hostPkgs.writeTextFile {
+        name = "create-builder";
+        executable = true;
+        destination = "/bin/create-builder";
+        text = ''
+          #!${hostPkgs.runtimeShell}
           set -euo pipefail
           export KEYS="''${KEYS:-./keys}"
           ${lib.getExe add-keys}
           ${lib.getExe run-builder}
-        '');
-
-      in
-      script.overrideAttrs (old: {
-        pos = __curPos; # sets meta.position to point here; see script binding above for package definition
-        meta = (old.meta or { }) // {
+        '';
+        checkPhase = ''
+          ${hostPkgs.stdenv.shellDryRun} "$target"
+        '';
+        meta = {
+          mainProgram = "create-builder";
+          description = "Create a Linux builder VM for macOS";
           platforms = lib.platforms.darwin;
         };
-        passthru = (old.passthru or { }) // {
+        passthru = {
           # Let users in the repl inspect the config
           nixosConfig = config;
           nixosOptions = options;
 
           inherit add-keys run-builder;
         };
-      });
+      };
 
     system = {
       # To prevent gratuitous rebuilds on each change to Nixpkgs

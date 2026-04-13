@@ -42,7 +42,8 @@ buildBazelPackage rec {
     hash = "sha256-Rq5pAVmxlWBVnph20fkAwbfy+iuBNlfFy14poDPd5h0=";
   };
 
-  bazel = buildPackages.bazel_5;
+  #bazel = buildPackages.bazel_5;
+  bazel = buildPackages.bazel;
 
   nativeBuildInputs = [
     pythonEnv
@@ -87,7 +88,7 @@ buildBazelPackage rec {
 
   fetchAttrs.sha256 = bazelDepsSha256;
 
-  PYTHON_BIN_PATH = pythonEnv.interpreter;
+  env.PYTHON_BIN_PATH = pythonEnv.interpreter;
 
   dontAddBazelOpts = true;
   removeRulesCC = false;
@@ -108,11 +109,11 @@ buildBazelPackage rec {
   dontAddPrefix = true;
   configurePlatforms = [ ];
 
-  meta = with lib; {
+  meta = {
     description = "Open source deep learning framework for on-device inference";
     homepage = "https://www.tensorflow.org/lite";
-    license = licenses.asl20;
-    maintainers = with maintainers; [
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [
       mschwaig
       cpcloud
     ];
@@ -120,5 +121,7 @@ buildBazelPackage rec {
       "x86_64-linux"
       "aarch64-linux"
     ];
+    # Bazel 5 was removed.
+    broken = true;
   };
 }

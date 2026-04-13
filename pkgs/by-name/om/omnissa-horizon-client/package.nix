@@ -12,7 +12,7 @@
   configText ? "",
 }:
 let
-  version = "2503";
+  version = "2512";
 
   sysArch =
     if stdenv.hostPlatform.system == "x86_64-linux" then
@@ -39,8 +39,8 @@ let
     pname = "omnissa-horizon-files";
     inherit version;
     src = fetchurl {
-      url = "https://download3.omnissa.com/software/CART26FQ1_LIN_2503_TARBALL/Omnissa-Horizon-Client-Linux-2503-8.15.0-14256322247.tar.gz";
-      sha256 = "c7df084d717dc70ce53eadfbe5a9d0daa06931b640702a8355705fbd93e16bb4";
+      url = "https://download3.omnissa.com/software/CART26FQ4_LIN_2512_TARBALL/Omnissa-Horizon-Client-Linux-2512-8.17.0-20187591429.tar.gz";
+      hash = "sha256-dYvP3W/tciqwazuVu4ib9gB98JUJykczd7sPCUih/Ew=";
     };
     nativeBuildInputs = [ makeWrapper ];
     installPhase = ''
@@ -102,34 +102,19 @@ let
           pixman
           udev
           omnissaHorizonClientFiles
-          xorg.libX11
-          xorg.libXau
-          xorg.libXcursor
-          xorg.libXext
-          xorg.libXi
-          xorg.libXinerama
-          xorg.libxkbfile
-          xorg.libXrandr
-          xorg.libXrender
-          xorg.libXScrnSaver
-          xorg.libXtst
+          libx11
+          libxau
+          libxcursor
+          libxext
+          libxi
+          libxinerama
+          libxkbfile
+          libxrandr
+          libxrender
+          libxscrnsaver
+          libxtst
           zlib
-
-          # c.f. https://github.com/NixOS/nixpkgs/pull/418543
-          (libxml2.overrideAttrs (oldAttrs: rec {
-            version = "2.13.8";
-            src = fetchurl {
-              url = "mirror://gnome/sources/libxml2/${lib.versions.majorMinor version}/libxml2-${version}.tar.xz";
-              hash = "sha256-J3KUyzMRmrcbK8gfL0Rem8lDW4k60VuyzSsOhZoO6Eo=";
-            };
-            meta = oldAttrs.meta // {
-              knownVulnerabilities = oldAttrs.meta.knownVulnerabilities or [ ] ++ [
-                "CVE-2025-49794"
-                "CVE-2025-49796"
-                "CVE-2025-6021"
-              ];
-            };
-          }))
+          libxml2_13
 
           (writeTextDir "etc/omnissa/config" configText)
         ];
@@ -169,12 +154,12 @@ stdenv.mkDerivation {
 
   passthru.updateScript = ./update.sh;
 
-  meta = with lib; {
+  meta = {
     inherit mainProgram;
     description = "Allows you to connect to your Omnissa Horizon virtual desktop";
     homepage = "https://www.omnissa.com/products/horizon-8/";
-    license = licenses.unfree;
+    license = lib.licenses.unfree;
     platforms = [ "x86_64-linux" ];
-    maintainers = with maintainers; [ mhutter ];
+    maintainers = with lib.maintainers; [ mhutter ];
   };
 }

@@ -13,6 +13,7 @@
   filelock,
   idna,
   keyring,
+  numpy,
   packaging,
   pandas,
   platformdirs,
@@ -21,7 +22,6 @@
   pyopenssl,
   pytest-xdist,
   pytestCheckHook,
-  pythonOlder,
   pytz,
   requests,
   setuptools,
@@ -32,16 +32,14 @@
 
 buildPythonPackage rec {
   pname = "snowflake-connector-python";
-  version = "3.15.0";
+  version = "4.2.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "snowflakedb";
     repo = "snowflake-connector-python";
     tag = "v${version}";
-    hash = "sha256-Dz5jxmbBfWThmd7H0MIO5+DfnjpDw9ADHg5Sc7P+DYs=";
+    hash = "sha256-u2DIgW0W9oXSif2lIDqhlIopaXzQRS0x6tyHiYPGFLM=";
   };
 
   build-system = [
@@ -71,6 +69,7 @@ buildPythonPackage rec {
   ];
 
   pythonRelaxDeps = [
+    "cffi"
     "pyopenssl"
   ];
 
@@ -87,6 +86,7 @@ buildPythonPackage rec {
   '';
 
   nativeCheckInputs = [
+    numpy
     pytest-xdist
     pytestCheckHook
   ];
@@ -122,11 +122,11 @@ buildPythonPackage rec {
     "snowflake.connector"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Snowflake Connector for Python";
     homepage = "https://github.com/snowflakedb/snowflake-connector-python";
-    changelog = "https://github.com/snowflakedb/snowflake-connector-python/blob/v${version}/DESCRIPTION.md";
-    license = licenses.asl20;
+    changelog = "https://github.com/snowflakedb/snowflake-connector-python/blob/${src.tag}/DESCRIPTION.md";
+    license = lib.licenses.asl20;
     maintainers = [ ];
   };
 }

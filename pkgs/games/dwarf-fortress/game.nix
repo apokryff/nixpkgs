@@ -194,10 +194,8 @@ stdenv.mkDerivation {
       a1russell
       robbinch
       roconnor
-      abbradar
       numinit
       shazow
-      ncfavier
     ];
     sourceProvenance = [ lib.sourceTypes.binaryNativeCode ];
   };

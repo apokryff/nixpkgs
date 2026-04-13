@@ -18,17 +18,20 @@
   webp-pixbuf-loader,
   libsoup_3,
   bash,
+  glib-networking,
+  tesseract,
+  nix-update-script,
 }:
-python3Packages.buildPythonApplication rec {
+python3Packages.buildPythonApplication (finalAttrs: {
   pname = "gradia";
-  version = "1.7.1";
+  version = "1.12.0";
   pyproject = false;
 
   src = fetchFromGitHub {
     owner = "AlexanderVanhee";
     repo = "Gradia";
-    tag = "v${version}";
-    hash = "sha256-EyO09tKv0SjqMyYM5J8wdeIH6/vJgF7p7FLaTfJDqXY=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-iYqMuqq2AmrdNMa7dkDUGg1+gCG7wL/rDEdWAPfcQnw=";
   };
 
   nativeBuildInputs = [
@@ -48,15 +51,26 @@ python3Packages.buildPythonApplication rec {
     libportal-gtk4
     libsoup_3
     bash
+    glib-networking
+    tesseract
   ];
+
+  patches = [
+    ./0001-fix-image_stack-action-target-type.patch
+  ];
+
+  postPatch = ''
+    substituteInPlace meson.build \
+      --replace "/app/bin/tesseract" "${lib.getExe tesseract}"
+  '';
 
   dependencies = with python3Packages; [
     pygobject3
     pillow
+    pytesseract
   ];
 
   postInstall = ''
-    substituteInPlace $out/share/gradia/gradia/ui/image_exporters.py --replace-fail "/bin/bash" "${lib.getExe bash}"
     export GDK_PIXBUF_MODULE_FILE="${
       gnome._gdkPixbufCacheBuilder_DO_NOT_USE {
         extraLoaders = [
@@ -71,16 +85,18 @@ python3Packages.buildPythonApplication rec {
 
   makeWrapperArgs = [ "\${gappsWrapperArgs[@]}" ];
 
+  passthru.updateScript = nix-update-script { };
+
   meta = {
     description = "Make your screenshots ready for the world";
     homepage = "https://github.com/AlexanderVanhee/Gradia";
-    changelog = "https://github.com/AlexanderVanhee/Gradia/releases/tag/${src.tag}";
     license = lib.licenses.gpl3Plus;
     maintainers = with lib.maintainers; [
       Cameo007
       quadradical
+      claymorwan
     ];
     mainProgram = "gradia";
     platforms = lib.platforms.linux;
   };
-}
+})

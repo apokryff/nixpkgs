@@ -12,11 +12,10 @@
   pango,
   expat,
   fribidi,
-  fmt,
   wayland,
   systemd,
   wayland-protocols,
-  json_c,
+  nlohmann_json,
   isocodes,
   xkeyboard_config,
   enchant,
@@ -24,14 +23,14 @@
   libGL,
   libuuid,
   libselinux,
-  libXdmcp,
+  libxdmcp,
   libsepol,
   libxkbcommon,
   libthai,
   libdatrie,
-  xcbutilkeysyms,
-  xcbutil,
-  xcbutilwm,
+  libxcb-keysyms,
+  libxcb-util,
+  libxcb-wm,
   xcb-imdkit,
   libxkbfile,
   nixosTests,
@@ -46,13 +45,14 @@ let
 in
 stdenv.mkDerivation rec {
   pname = "fcitx5";
-  version = "5.1.12";
+  version = "5.1.19";
 
   src = fetchFromGitHub {
     owner = "fcitx";
     repo = pname;
     rev = version;
-    hash = "sha256-Jk7YY6nrY1Yn9KeNlRJbMF/fCMIlUVg/Elt7SymlK84=";
+    hash = "sha256-ZsGRVuUpWIJnsSqcAQcerxvwWIRaGdAO2FM1k3D3g0M=";
+    fetchSubmodules = true;
   };
 
   prePatch = ''
@@ -69,7 +69,6 @@ stdenv.mkDerivation rec {
 
   buildInputs = [
     expat
-    fmt
     isocodes
     cairo
     enchant
@@ -81,16 +80,16 @@ stdenv.mkDerivation rec {
     gdk-pixbuf
     wayland
     wayland-protocols
-    json_c
+    nlohmann_json
     libGL
     libuuid
     libselinux
     libsepol
-    libXdmcp
+    libxdmcp
     libxkbcommon
-    xcbutil
-    xcbutilwm
-    xcbutilkeysyms
+    libxcb-util
+    libxcb-wm
+    libxcb-keysyms
     xcb-imdkit
     xkeyboard_config
     libxkbfile
@@ -109,12 +108,12 @@ stdenv.mkDerivation rec {
     };
   };
 
-  meta = with lib; {
+  meta = {
     description = "Next generation of fcitx";
     homepage = "https://github.com/fcitx/fcitx5";
-    license = licenses.lgpl21Plus;
+    license = lib.licenses.lgpl21Plus;
     mainProgram = "fcitx5";
-    maintainers = with maintainers; [ poscat ];
-    platforms = platforms.linux;
+    maintainers = with lib.maintainers; [ poscat ];
+    platforms = lib.platforms.linux;
   };
 }

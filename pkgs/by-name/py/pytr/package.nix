@@ -2,20 +2,21 @@
   fetchFromGitHub,
   installShellFiles,
   lib,
+  stdenv,
   python3Packages,
   versionCheckHook,
 }:
 
 python3Packages.buildPythonApplication rec {
   pname = "pytr";
-  version = "0.4.3";
+  version = "0.4.7";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "pytr-org";
     repo = "pytr";
     tag = "v${version}";
-    hash = "sha256-72CxtO9AvjgK0lwcjHZexfedpNbrFEvRSN30hhiv+Zk=";
+    hash = "sha256-+GIjNtlg9q125jf8p5AyE1F+lT0mfqQaSJbusp0kRmo=";
   };
 
   build-system = with python3Packages; [
@@ -27,6 +28,8 @@ python3Packages.buildPythonApplication rec {
     babel
     certifi
     coloredlogs
+    cryptography
+    curl-cffi
     ecdsa
     packaging
     pathvalidate
@@ -38,7 +41,7 @@ python3Packages.buildPythonApplication rec {
 
   nativeBuildInputs = [ installShellFiles ];
 
-  postInstall = ''
+  postInstall = lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
     installShellCompletion --cmd pytr \
       --bash <($out/bin/pytr completion bash) \
       --zsh <($out/bin/pytr completion zsh)
@@ -48,8 +51,6 @@ python3Packages.buildPythonApplication rec {
     versionCheckHook
     python3Packages.pytestCheckHook
   ];
-
-  versionCheckProgramArg = "--version";
 
   pythonImportsCheck = [ "pytr" ];
 

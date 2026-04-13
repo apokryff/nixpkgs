@@ -8,6 +8,9 @@
   groff,
   sssd,
   nixosTests,
+  genericUpdater,
+  writeShellScript,
+  curl,
   sendmailPath ? "/run/wrappers/bin/sendmail",
   withInsults ? false,
   withSssd ? false,
@@ -51,6 +54,18 @@ stdenv.mkDerivation (finalAttrs: {
     "--with-sssd-lib=${sssd}/lib"
   ];
 
+  outputs = [
+    "out"
+    "man"
+    "doc"
+    "dev"
+  ];
+  # The default stdenv ./configure flags for some reason cause the upstream's
+  # Makefile to `mkdir /var/db`, which fails in the sandbox. Since we split
+  # only trivial outputs - a single header and documentation, we can safely set
+  # the following:
+  setOutputFlags = false;
+
   postConfigure = ''
     cat >> pathnames.h <<'EOF'
       #undef _PATH_MV
@@ -72,9 +87,16 @@ stdenv.mkDerivation (finalAttrs: {
     rm $out/share/doc/sudo/ChangeLog
   '';
 
-  passthru.tests = { inherit (nixosTests) sudo; };
+  passthru = {
+    tests = { inherit (nixosTests) sudo; };
+    updateScript = genericUpdater {
+      versionLister = writeShellScript "sudo-versionLister" ''
+        ${lib.getExe curl} -sL https://www.sudo.ws/dist | grep -Po 'href="sudo-\K[\w.]*(?=\.tar\.gz")'
+      '';
+    };
+  };
 
-  meta = with lib; {
+  meta = {
     description = "Command to run commands as root";
     longDescription = ''
       Sudo (su "do") allows a system administrator to delegate
@@ -84,14 +106,14 @@ stdenv.mkDerivation (finalAttrs: {
     '';
     homepage = "https://www.sudo.ws/";
     # From https://www.sudo.ws/about/license/
-    license = with licenses; [
+    license = with lib.licenses; [
       sudo
       bsd2
       bsd3
       zlib
     ];
-    maintainers = with maintainers; [ rhendric ];
-    platforms = platforms.linux ++ platforms.freebsd ++ platforms.openbsd;
+    maintainers = with lib.maintainers; [ rhendric ];
+    platforms = lib.platforms.linux ++ lib.platforms.freebsd ++ lib.platforms.openbsd;
     mainProgram = "sudo";
   };
 })

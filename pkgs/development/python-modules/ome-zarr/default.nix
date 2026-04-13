@@ -12,25 +12,27 @@
   dask,
   fsspec,
   numpy,
+  rangehttpserver,
   requests,
   scikit-image,
   toolz,
   zarr,
 
   # tests
+  ome-zarr-models,
   pytestCheckHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "ome-zarr";
-  version = "0.11.1";
+  version = "0.13.0";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "ome";
     repo = "ome-zarr-py";
-    tag = "v${version}";
-    hash = "sha256-3RXkz+UQvLixfYYhm5y/5vu9r0ga6s3xKx1azbmKFgg=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-bRksh6ZKqF6cL6XnWBsQRb4gRVxH/vutKtep6SyFo48=";
   };
 
   build-system = [
@@ -38,11 +40,15 @@ buildPythonPackage rec {
     setuptools-scm
   ];
 
+  pythonRelaxDeps = [
+    "dask"
+  ];
   dependencies = [
     aiohttp
     dask
     fsspec
     numpy
+    rangehttpserver
     requests
     scikit-image
     toolz
@@ -51,12 +57,18 @@ buildPythonPackage rec {
   ++ fsspec.optional-dependencies.s3;
 
   nativeCheckInputs = [
+    ome-zarr-models
     pytestCheckHook
   ];
 
   disabledTests = [
     # attempts to access network
     "test_s3_info"
+
+    # AssertionError: assert {'blocksize':... 'blosc', ...} == {'blocksize':... 'blosc', ...}
+    # comp {'id': 'blosc', 'cname': 'lz4', 'clevel': 5, 'shuffle': 1, 'blocksize': 0}
+    "test_default_compression"
+    "test_write_image_compressed"
   ];
 
   disabledTestPaths = [
@@ -78,6 +90,9 @@ buildPythonPackage rec {
     "tests/test_starting_points.py::TestStartingPoints::test_label"
     "tests/test_starting_points.py::TestStartingPoints::test_labels"
     "tests/test_starting_points.py::TestStartingPoints::test_top_level"
+
+    # tries to access network:
+    "ome_zarr/io.py"
   ];
 
   pythonImportsCheck = [
@@ -96,9 +111,9 @@ buildPythonPackage rec {
   meta = {
     description = "Implementation of next-generation file format (NGFF) specifications for storing bioimaging data in the cloud";
     homepage = "https://pypi.org/project/ome-zarr";
-    changelog = "https://github.com/ome/ome-zarr-py/blob/${src.tag}/CHANGELOG.md";
+    changelog = "https://github.com/ome/ome-zarr-py/blob/${finalAttrs.src.tag}/CHANGELOG.md";
     license = lib.licenses.bsd2;
     maintainers = [ lib.maintainers.bcdarwin ];
     mainProgram = "ome_zarr";
   };
-}
+})

@@ -6,12 +6,12 @@
   installShellFiles,
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "preserves-tools";
   version = "4.996.1";
 
   src = fetchCrate {
-    inherit pname version;
+    inherit (finalAttrs) pname version;
     hash = "sha256-Uyh5mXCypX3TDxxJtnTe6lBoVI8aqdG56ywn7htDGUY=";
   };
 
@@ -29,7 +29,6 @@ rustPlatform.buildRustPackage rec {
     description = "Command-line utilities for working with Preserves documents";
     homepage = "https://preserves.dev/doc/preserves-tool.html";
     license = lib.licenses.asl20;
-    maintainers = with lib.maintainers; [ ehmry ];
     mainProgram = "preserves-tool";
   };
-}
+})

@@ -2,7 +2,6 @@
   lib,
   stdenv,
   buildPythonPackage,
-  pythonOlder,
   fetchFromGitHub,
   findpython,
   installShellFiles,
@@ -26,27 +25,24 @@
   trove-classifiers,
   virtualenv,
   xattr,
-  tomli,
-  importlib-metadata,
   deepdiff,
   pytestCheckHook,
   httpretty,
   pytest-mock,
   pytest-xdist,
+  responses,
 }:
 
 buildPythonPackage rec {
   pname = "poetry";
-  version = "2.1.3";
+  version = "2.3.3";
   pyproject = true;
-
-  disabled = pythonOlder "3.9";
 
   src = fetchFromGitHub {
     owner = "python-poetry";
     repo = "poetry";
     tag = version;
-    hash = "sha256-aMmYgFdQhgMd99atAtr5MD0yniaIi+QTPJ0rMI2jMxk=";
+    hash = "sha256-+8zVe2JeQbbqmKOydQw1tZM2PYa5H/5ImBcVpoxYC5w=";
   };
 
   build-system = [
@@ -55,12 +51,6 @@ buildPythonPackage rec {
 
   nativeBuildInputs = [
     installShellFiles
-  ];
-
-  pythonRelaxDeps = [
-    "dulwich"
-    "keyring"
-    "virtualenv"
   ];
 
   dependencies = [
@@ -88,17 +78,11 @@ buildPythonPackage rec {
   ++ lib.optionals (stdenv.hostPlatform.isDarwin) [
     xattr
   ]
-  ++ lib.optionals (pythonOlder "3.11") [
-    tomli
-  ]
-  ++ lib.optionals (pythonOlder "3.10") [
-    importlib-metadata
-  ]
   ++ cachecontrol.optional-dependencies.filecache
   ++ pbs-installer.optional-dependencies.download
   ++ pbs-installer.optional-dependencies.install;
 
-  postInstall = ''
+  postInstall = lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
     installShellCompletion --cmd poetry \
       --bash <($out/bin/poetry completions bash) \
       --fish <($out/bin/poetry completions fish) \
@@ -111,6 +95,7 @@ buildPythonPackage rec {
     httpretty
     pytest-mock
     pytest-xdist
+    responses
   ];
 
   preCheck = (

@@ -6,22 +6,19 @@
   pydantic,
   pytest-asyncio,
   pytestCheckHook,
-  pythonOlder,
   setuptools,
 }:
 
 buildPythonPackage rec {
   pname = "pytouchlinesl";
-  version = "0.4.0";
+  version = "0.6.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.10";
 
   src = fetchFromGitHub {
     owner = "jnsgruk";
     repo = "pytouchlinesl";
     tag = version;
-    hash = "sha256-hrC5cBtAU9P9VaRIoUKDx5x4KwUN6mO/JwEZrsnYB0s=";
+    hash = "sha256-o9/K+0ADbU9qTtjLCGM2+aBQsQDP22qdwsgimo9oKns=";
   };
 
   build-system = [ setuptools ];

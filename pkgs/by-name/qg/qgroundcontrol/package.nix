@@ -7,6 +7,7 @@
   gst_all_1,
   wayland,
   pkg-config,
+  nix-update-script,
 }:
 
 stdenv.mkDerivation rec {
@@ -73,8 +74,7 @@ stdenv.mkDerivation rec {
     mkdir -p $out/share/qgroundcontrol
     cp -rv resources/ $out/share/qgroundcontrol
 
-    mkdir -p $out/share/pixmaps
-    cp -v resources/icons/qgroundcontrol.png $out/share/pixmaps
+    install -D resources/icons/qgroundcontrol.png -t $out/share/icons/hicolor/128x128/apps
 
     runHook postInstall
   '';
@@ -95,6 +95,8 @@ stdenv.mkDerivation rec {
   patches = [
     ./disable-bad-message.patch
   ];
+
+  passthru.updateScript = nix-update-script { };
 
   meta = {
     description = "Provides full ground station support and configuration for the PX4 and APM Flight Stacks";

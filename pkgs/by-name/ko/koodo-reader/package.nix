@@ -14,26 +14,32 @@
   wrapGAppsHook3,
   xcbuild,
 
-  electron_35,
+  electron_39,
+
+  nix-update-script,
 }:
 
 let
-  electron = electron_35; # don't use latest electron to avoid going over the supported abi numbers
+  electron = electron_39; # don't use latest electron to avoid going over the supported abi numbers
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "koodo-reader";
-  version = "2.0.9";
+  version = "2.2.4";
 
   src = fetchFromGitHub {
     owner = "troyeguo";
     repo = "koodo-reader";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-t93yRd9TrtGZogjpSy0Bse0cM5BFyMaSxFYQFZZyvPM=";
+    hash = "sha256-KUcI+0+ICMdwAF30CLM3QdS+X8UnYiHhcYkvEQ6WgS8=";
   };
 
-  offlineCache = fetchYarnDeps {
-    inherit (finalAttrs) src;
-    hash = "sha256-NCnIayneTJqkNHHO98iS4bp7mlV3WHXF9Z7F5zKpD8I=";
+  patches = [
+    ./bump-abi-compat.patch
+  ];
+
+  yarnOfflineCache = fetchYarnDeps {
+    inherit (finalAttrs) src patches;
+    hash = "sha256-XyFcY0XeNdNzLuqfv9Z2/41875Nl5OrAT/QVyI/+OQc=";
   };
 
   nativeBuildInputs = [
@@ -54,9 +60,6 @@ stdenv.mkDerivation (finalAttrs: {
 
   env.ELECTRON_SKIP_BINARY_DOWNLOAD = "1";
 
-  # disable code signing on Darwin
-  env.CSC_IDENTITY_AUTO_DISCOVERY = "false";
-
   postBuild = ''
     cp -r ${electron.dist} electron-dist
     chmod -R u+w electron-dist
@@ -68,7 +71,9 @@ stdenv.mkDerivation (finalAttrs: {
     export npm_config_nodedir=${electron.headers}
     npm run postinstall
 
+    # Explicitly set identity to null to avoid signing on darwin
     yarn --offline run electron-builder --dir \
+      -c.mac.identity=null \
       -c.electronDist=electron-dist \
       -c.electronVersion=${electron.version}
   '';
@@ -130,6 +135,8 @@ stdenv.mkDerivation (finalAttrs: {
       terminal = false;
     })
   ];
+
+  passthru.updateScript = nix-update-script { };
 
   meta = {
     changelog = "https://github.com/troyeguo/koodo-reader/releases/tag/${finalAttrs.src.tag}";

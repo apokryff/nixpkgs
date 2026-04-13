@@ -31,20 +31,26 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "miracle-wm";
-  version = "0.6.2";
+  version = "0.8.3";
 
   src = fetchFromGitHub {
     owner = "miracle-wm-org";
     repo = "miracle-wm";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-zUqW21gZC7J/E0cld11N6OyclpgKCh4F7m/soBi3N1E=";
+    hash = "sha256-N8FDoQDEfv0xGjtnKx+jNfRwxvJdb4ETvQnZuBvlccQ=";
   };
 
   postPatch = ''
     substituteInPlace CMakeLists.txt \
       --replace-fail 'DESTINATION /usr/lib' 'DESTINATION ''${CMAKE_INSTALL_LIBDIR}' \
-      --replace-fail '-march=native' '# -march=native' \
-      --replace-fail '-flto' '# -flto'
+      --replace-fail '-march=native' '# -march=native'
+  ''
+  # Fix compat with newer Mir
+  # https://github.com/miracle-wm-org/miracle-wm/commit/aaae6e64261d8a00c2a1df47e2eab99400382d69
+  # Remove when version > 0.8.3
+  + ''
+    substituteInPlace CMakeLists.txt \
+      --replace-fail 'pkg_check_modules(MIRRENDERER REQUIRED mirrenderer' 'pkg_check_modules(MIRRENDERER mirrenderer'
   ''
   + lib.optionalString (!finalAttrs.finalPackage.doCheck) ''
     substituteInPlace CMakeLists.txt \
@@ -52,9 +58,6 @@ stdenv.mkDerivation (finalAttrs: {
   '';
 
   strictDeps = true;
-
-  # Source has a path "session/usr/local/...", don't break references to that
-  dontFixCmake = true;
 
   nativeBuildInputs = [
     cmake
@@ -89,13 +92,17 @@ stdenv.mkDerivation (finalAttrs: {
   checkInputs = [ gtest ];
 
   cmakeFlags = [
+    (lib.cmakeBool "ENABLE_LTO" true)
     (lib.cmakeBool "SYSTEMD_INTEGRATION" true)
+    (lib.cmakeBool "END_TO_END_TESTS" finalAttrs.finalPackage.doCheck)
   ];
 
   doCheck = stdenv.buildPlatform.canExecute stdenv.hostPlatform;
 
   checkPhase = ''
     runHook preCheck
+
+    export XDG_RUNTIME_DIR=$TMP
 
     ./tests/miracle-wm-tests
 

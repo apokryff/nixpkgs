@@ -9,22 +9,26 @@
 
 buildGoModule (finalAttrs: {
   pname = "distribution";
-  version = "3.0.0";
+  version = "3.1.0";
 
   src = fetchFromGitHub {
     owner = "distribution";
     repo = "distribution";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-myezQTEdH7kkpCoAeZMf5OBxT4Bz8Qx6vCnwim230RY=";
+    hash = "sha256-r0J1zsj4Qioe8+dByqzOgJypW+A06P2uIjetPu7w+24=";
   };
 
   vendorHash = null;
 
-  checkFlags = [
-    # TestHTTPChecker: requires internet access.
-    # TestInMemoryDriverSuite: timeout after 10 minutes, looks like a deadlock.
-    "-skip=^TestHTTPChecker$|^TestInMemoryDriverSuite$"
-  ];
+  checkFlags =
+    let
+      skippedTests = [
+        "TestHTTPChecker" # requires internet access
+        "TestInMemoryDriverSuite" # timeout after 10 minutes, looks like a deadlock
+        "TestGracefulShutdown" # fails on trace export, see https://github.com/distribution/distribution/issues/4696
+      ];
+    in
+    [ "-skip=^${builtins.concatStringsSep "$|^" skippedTests}$" ];
   __darwinAllowLocalNetworking = true;
 
   passthru = {

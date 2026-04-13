@@ -11,6 +11,7 @@
   libbpf,
   zlib,
   elfutils,
+  intel-ipsec-mb,
   jansson,
   openssl,
   libpcap,
@@ -33,11 +34,11 @@
 
 stdenv.mkDerivation rec {
   pname = "dpdk";
-  version = "25.03";
+  version = "25.07";
 
   src = fetchurl {
     url = "https://fast.dpdk.org/rel/dpdk-${version}.tar.xz";
-    sha256 = "sha256-akCnMTKChuvXloWxj/pZkua3cME4Q9Zf0NEVfPzP9j0=";
+    sha256 = "sha256-aIbL7cNQu4y+80fRA2fWJZ42Q1Yn+7J9V4rb3A07QQ0=";
   };
 
   nativeBuildInputs = [
@@ -54,6 +55,7 @@ stdenv.mkDerivation rec {
     jansson
     libbpf
     elfutils
+    intel-ipsec-mb
     libpcap
     numactl
     openssl.dev
@@ -101,18 +103,16 @@ stdenv.mkDerivation rec {
   ]
   ++ lib.optional (withExamples != [ ]) "examples";
 
-  meta = with lib; {
+  meta = {
     description = "Set of libraries and drivers for fast packet processing";
     homepage = "http://dpdk.org/";
-    license = with licenses; [
+    license = with lib.licenses; [
       lgpl21
       gpl2Only
       bsd2
     ];
-    platforms = platforms.linux;
-    maintainers = with maintainers; [
-      magenbluten
-      orivej
+    platforms = lib.platforms.linux;
+    maintainers = with lib.maintainers; [
       mic92
       zhaofengli
     ];

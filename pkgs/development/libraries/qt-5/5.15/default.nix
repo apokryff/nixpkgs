@@ -10,24 +10,14 @@
   generateSplicesForMkScope,
   lib,
   stdenv,
+  gcc14Stdenv,
   fetchurl,
   fetchgit,
   fetchpatch,
   fetchFromGitHub,
   makeSetupHook,
-  makeWrapper,
-  bison,
-  cups ? null,
-  harfbuzz,
-  libGL,
-  perl,
   python3,
-  gstreamer,
-  gst-plugins-base,
-  gtk3,
-  dconf,
-  llvmPackages_15,
-  overrideLibcxx,
+  llvmPackages_19,
   darwin,
 
   # options
@@ -247,12 +237,15 @@ let
   addPackages =
     self:
     let
-      qtModule = callPackage ../qtModule.nix {
-        inherit patches;
-        # Use a variant of mkDerivation that does not include wrapQtApplications
-        # to avoid cyclic dependencies between Qt modules.
-        mkDerivation = (callPackage ../mkDerivation.nix { wrapQtAppsHook = null; }) stdenv.mkDerivation;
-      };
+      qtModuleWithStdenv =
+        stdenv:
+        callPackage ../qtModule.nix {
+          inherit patches;
+          # Use a variant of mkDerivation that does not include wrapQtApplications
+          # to avoid cyclic dependencies between Qt modules.
+          mkDerivation = (callPackage ../mkDerivation.nix { wrapQtAppsHook = null; }) stdenv.mkDerivation;
+        };
+      qtModule = qtModuleWithStdenv stdenv;
 
       callPackage = self.newScope {
         inherit
@@ -279,14 +272,7 @@ let
       qtbase = callPackage ../modules/qtbase.nix {
         inherit (srcs.qtbase) src version;
         patches = patches.qtbase;
-        inherit
-          bison
-          cups
-          harfbuzz
-          libGL
-          ;
         withGtk3 = !stdenv.hostPlatform.isDarwin;
-        inherit dconf gtk3;
         inherit developerBuild decryptSslTraffic;
       };
 
@@ -302,9 +288,7 @@ let
       qtlocation = callPackage ../modules/qtlocation.nix { };
       qtlottie = callPackage ../modules/qtlottie.nix { };
       qtmacextras = callPackage ../modules/qtmacextras.nix { };
-      qtmultimedia = callPackage ../modules/qtmultimedia.nix {
-        inherit gstreamer gst-plugins-base;
-      };
+      qtmultimedia = callPackage ../modules/qtmultimedia.nix { };
       qtnetworkauth = callPackage ../modules/qtnetworkauth.nix { };
       qtpim = callPackage ../modules/qtpim.nix { };
       qtpositioning = callPackage ../modules/qtpositioning.nix { };
@@ -327,21 +311,22 @@ let
       qtvirtualkeyboard = callPackage ../modules/qtvirtualkeyboard.nix { };
       qtwayland = callPackage ../modules/qtwayland.nix { };
       qtwebchannel = callPackage ../modules/qtwebchannel.nix { };
-      qtwebengine = callPackage ../modules/qtwebengine.nix {
-        # The version of Chromium used by Qt WebEngine 5.15.x does not build with clang 16 due
-        # to the following errors:
-        # * -Wenum-constexpr-conversion: This is a downgradable error in clang 16, but it is planned
-        #   to be made into a hard error in a future version of clang. Patches are not available for
-        #   the version of v8 used by Chromium in Qt WebEngine, and fixing the code is non-trivial.
-        # * -Wincompatible-function-pointer-types: This is also a downgradable error generated
-        #   starting with clang 16. Patches are available upstream that can be backported.
-        # Because the first error is non-trivial to fix and suppressing it risks future breakage,
-        # clang is pinned to clang 15. That also makes fixing the second set of errors unnecessary.
-        stdenv = if stdenv.cc.isClang then overrideLibcxx llvmPackages_15.stdenv else stdenv;
-        inherit (srcs.qtwebengine) version;
-        inherit (darwin) bootstrap_cmds;
-        python = python3;
-      };
+      qtwebengine =
+        # Actually propagating stdenv change
+        let
+          # Won’t build with Clang 20, as `-Wenum-constexpr-conversion`
+          # was made a hard error.
+          # qt5webengine no longer maintained, FTBFS with GCC 15
+          stdenv' = if stdenv.cc.isClang then llvmPackages_19.stdenv else gcc14Stdenv;
+          qtModule' = qtModuleWithStdenv stdenv';
+        in
+        callPackage ../modules/qtwebengine.nix {
+          inherit (srcs.qtwebengine) version;
+          inherit (darwin) bootstrap_cmds;
+          stdenv = stdenv';
+          qtModule = qtModule';
+          python = python3;
+        };
       qtwebglplugin = callPackage ../modules/qtwebglplugin.nix { };
       qtwebkit = callPackage ../modules/qtwebkit.nix { };
       qtwebsockets = callPackage ../modules/qtwebsockets.nix { };
@@ -350,42 +335,6 @@ let
       qtxmlpatterns = callPackage ../modules/qtxmlpatterns.nix { };
 
       env = callPackage ../qt-env.nix { };
-      full =
-        callPackage ({ env, qtbase }: env "qt-full-${qtbase.version}") { }
-          # `with self` is ok to use here because having these spliced is unnecessary
-          (
-            with self;
-            [
-              qt3d
-              qtcharts
-              qtconnectivity
-              qtdeclarative
-              qtdoc
-              qtgraphicaleffects
-              qtimageformats
-              qtlocation
-              qtmultimedia
-              qtquickcontrols
-              qtquickcontrols2
-              qtscript
-              qtsensors
-              qtserialport
-              qtsvg
-              qttools
-              qttranslations
-              qtvirtualkeyboard
-              qtwebchannel
-              qtwebengine
-              qtwebsockets
-              qtwebview
-              qtx11extras
-              qtxmlpatterns
-              qtlottie
-              qtdatavis3d
-            ]
-            ++ lib.optional (!stdenv.hostPlatform.isDarwin) qtwayland
-            ++ lib.optional (stdenv.hostPlatform.isDarwin) qtmacextras
-          );
 
       qmake = callPackage (
         { qtbase }:
@@ -420,6 +369,9 @@ let
           ++ lib.optional stdenv.hostPlatform.isLinux qtwayland.dev;
         } ../hooks/wrap-qt-apps-hook.sh
       ) { };
+    }
+    // lib.optionalAttrs config.allowAliases {
+      full = throw "libsForQt5.full has been removed. Please use individual packages instead."; # Added 2025-10-18
     };
 
   baseScope = makeScopeWithSplicing' {

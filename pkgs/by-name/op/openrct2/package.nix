@@ -22,41 +22,46 @@
   libiconv,
   libogg,
   libpng,
-  libpthreadstubs,
+  libpthread-stubs,
   libvorbis,
   libzip,
+  makeWrapper,
   nlohmann_json,
   openssl,
   pkg-config,
   speexdsp,
   zlib,
+  withDiscordRpc ? false,
+  # Paths to RCT1 and RCT2 installs can be specified to have them added as a wrapped argument
+  rct1Path ? null,
+  rct2Path ? null,
 }:
 
 let
-  openrct2-version = "0.4.24";
+  openrct2-version = "0.4.31";
 
   # Those versions MUST match the pinned versions within the CMakeLists.txt
   # file. The REPLAYS repository from the CMakeLists.txt is not necessary.
-  objects-version = "1.7.1";
-  openmsx-version = "1.6";
-  opensfx-version = "1.0.5";
-  title-sequences-version = "0.4.14";
+  objects-version = "1.7.6";
+  openmsx-version = "1.6.1";
+  opensfx-version = "1.0.6";
+  title-sequences-version = "0.4.26";
 
   objects = fetchurl {
     url = "https://github.com/OpenRCT2/objects/releases/download/v${objects-version}/objects.zip";
-    hash = "sha256-Z5ussyDgEG9MrPxmGaSy4yKTb1W9qMFEdEa8Jtv+oZM=";
+    hash = "sha256-asoutEH76MAi/4TVn7Ue1+pXd1ZkCXDcmJ6raF/0VpY=";
   };
   openmsx = fetchurl {
     url = "https://github.com/OpenRCT2/OpenMusic/releases/download/v${openmsx-version}/openmusic.zip";
-    hash = "sha256-8JfTpMzTn3VG+X2z7LG4vnNkj1O3p1lbhszL3Bp1V+Q=";
+    hash = "sha256-mUs1DTsYDuHLlhn+J/frrjoaUjKEDEvUeonzP6id4aE=";
   };
   opensfx = fetchurl {
     url = "https://github.com/OpenRCT2/OpenSoundEffects/releases/download/v${opensfx-version}/opensound.zip";
-    hash = "sha256-qVIUi+FkwSjk/TrqloIuXwUe3ZoLHyyE3n92KM47Lhg=";
+    hash = "sha256-BrkPPhnCFnUt9EHVUbJqnj4bp3Vb3SECUEtzv5k2CL4=";
   };
   title-sequences = fetchurl {
     url = "https://github.com/OpenRCT2/title-sequences/releases/download/v${title-sequences-version}/title-sequences.zip";
-    hash = "sha256-FA33FOgG/tQRzEl2Pn8WsPzypIelcAHR5Q/Oj5FIqfM=";
+    hash = "sha256-2ruXh7FXY0L8pN2fZLP4z6BKfmzpwruWEPR7dikFyFg=";
   };
 in
 stdenv.mkDerivation (finalAttrs: {
@@ -66,20 +71,20 @@ stdenv.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "OpenRCT2";
     repo = "OpenRCT2";
-    rev = "v${openrct2-version}";
-    hash = "sha256-kGayrRCPahs1aQgM5dXeVuMf4tIwTxc8G0Z857fjCRI=";
+    tag = "v${openrct2-version}";
+    hash = "sha256-jXcB2lwf/2O+TMSakp32it6T8Fg0e5QFcbMU89WoMjU=";
   };
 
   nativeBuildInputs = [
     cmake
     pkg-config
     unzip
+    makeWrapper
   ];
 
   buildInputs = [
     SDL2
     curl
-    discord-rpc
     duktape
     expat
     flac
@@ -93,20 +98,22 @@ stdenv.mkDerivation (finalAttrs: {
     libiconv
     libogg
     libpng
-    libpthreadstubs
+    libpthread-stubs
     libvorbis
     libzip
     nlohmann_json
     openssl
     speexdsp
     zlib
-  ];
+  ]
+  ++ lib.optional withDiscordRpc discord-rpc;
 
   cmakeFlags = [
-    "-DDOWNLOAD_OBJECTS=OFF"
-    "-DDOWNLOAD_OPENMSX=OFF"
-    "-DDOWNLOAD_OPENSFX=OFF"
-    "-DDOWNLOAD_TITLE_SEQUENCES=OFF"
+    (lib.cmakeBool "DOWNLOAD_OBJECTS" false)
+    (lib.cmakeBool "DOWNLOAD_OPENMSX" false)
+    (lib.cmakeBool "DOWNLOAD_OPENSFX" false)
+    (lib.cmakeBool "DOWNLOAD_TITLE_SEQUENCES" false)
+    (lib.cmakeBool "DISABLE_DISCORD_RPC" (!withDiscordRpc))
   ];
 
   postUnpack = ''
@@ -138,6 +145,12 @@ stdenv.mkDerivation (finalAttrs: {
       + (versionCheck "TITLE_SEQUENCE" title-sequences-version)
     );
 
+  postInstall = ''
+    wrapProgram $out/bin/openrct2 \
+      ${lib.optionalString (rct1Path != null) "--add-flags '--rct1-data-path=\"${rct1Path}\"'"} \
+      ${lib.optionalString (rct2Path != null) "--add-flags '--rct2-data-path=\"${rct2Path}\"'"}
+  '';
+
   meta = {
     description = "Open source re-implementation of RollerCoaster Tycoon 2 (original game required)";
     homepage = "https://openrct2.io/";
@@ -145,7 +158,6 @@ stdenv.mkDerivation (finalAttrs: {
     license = lib.licenses.gpl3Only;
     platforms = lib.platforms.linux;
     maintainers = with lib.maintainers; [
-      oxzi
       keenanweaver
       kylerisse
     ];

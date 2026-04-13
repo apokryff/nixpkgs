@@ -7,16 +7,16 @@
 
 buildGoModule (finalAttrs: {
   pname = "nextcloud-spreed-signaling";
-  version = "2.0.3";
+  version = "2.1.1";
 
   src = fetchFromGitHub {
     owner = "strukturag";
     repo = "nextcloud-spreed-signaling";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-JBYhmIXDpovkXM8oYO3B9n2bs+H0GjmuT4Dl3gEQjPo=";
+    hash = "sha256-thXTIvaEufGOYWFMiqZxUcqhZbXRQgTj2FeZ2s/gqaI=";
   };
 
-  vendorHash = "sha256-MGz0tj6QwDXYDtamgN6d5yfIFHToE+XF3HYVsFRxHhM=";
+  vendorHash = "sha256-qLyehDoZZBCzlc8X/il1+8gtX6M/nhjqUKccebuxLVE=";
 
   strictDeps = true;
 

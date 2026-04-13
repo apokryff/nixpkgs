@@ -7,8 +7,8 @@
   makeWrapper,
 }:
 
-symlinkJoin rec {
-  name = "prevo-${version}";
+symlinkJoin {
+  pname = "prevo";
   inherit (prevo-tools) version;
 
   paths = [ prevo-tools ];
@@ -33,7 +33,6 @@ symlinkJoin rec {
     mainProgram = "prevo";
     maintainers = with lib.maintainers; [
       das-g
-      ehmry
     ];
   };
 }

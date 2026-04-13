@@ -5,7 +5,6 @@
   perl,
   perlPackages,
   makeWrapper,
-  shortenPerlShebang,
   openssl,
   nixosTests,
 }:
@@ -21,10 +20,7 @@ perlPackages.buildPerlPackage rec {
     sha256 = "sha256-dBvXo8y4OMKcb0imgnnzoklnPN3YePHDvy5rIBOkTfs=";
   };
 
-  nativeBuildInputs = [
-    makeWrapper
-  ]
-  ++ lib.optionals stdenv.hostPlatform.isDarwin [ shortenPerlShebang ];
+  nativeBuildInputs = [ makeWrapper ];
 
   buildInputs = with perlPackages; [
     CryptPassphrase
@@ -108,9 +104,6 @@ perlPackages.buildPerlPackage rec {
     cp -vR templates $out/templates
     cp Makefile.PL $out/Makefile.PL
   ''
-  + lib.optionalString stdenv.hostPlatform.isDarwin ''
-    shortenPerlShebang $out/bin/convos
-  ''
   + ''
     wrapProgram $out/bin/convos --set MOJO_HOME $out
   '';
@@ -119,7 +112,7 @@ perlPackages.buildPerlPackage rec {
 
   meta = {
     homepage = "https://convos.chat";
-    description = "Convos is the simplest way to use IRC in your browser";
+    description = "IRC browser client";
     mainProgram = "convos";
     license = lib.licenses.artistic2;
     maintainers = with lib.maintainers; [ sgo ];

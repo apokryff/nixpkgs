@@ -4,7 +4,7 @@
   fetchFromGitHub,
 
   # build-system
-  setuptools,
+  hatchling,
 
   # dependencies
   agate,
@@ -13,6 +13,7 @@
   dbt-adapters,
   dbt-common,
   dbt-extractor,
+  dbt-protos,
   dbt-semantic-interfaces,
   jinja2,
   logbook,
@@ -36,22 +37,15 @@
 
 buildPythonPackage rec {
   pname = "dbt-core";
-  version = "1.10.0b2";
+  version = "1.11.2";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "dbt-labs";
     repo = "dbt-core";
     tag = "v${version}";
-    hash = "sha256-MTrdpbPqdakFDmLKRFJ23u9hLgGhZ5T+r4om9HPBjkw=";
+    hash = "sha256-+7q332Te3R6g8HvT1Gwa7vHo8OBmT0/E/CzunBYIvZk=";
   };
-
-  postPatch = ''
-    substituteInPlace dbt/utils/artifact_upload.py \
-      --replace-fail \
-        "from pydantic import BaseSettings" \
-        "from pydantic_settings import BaseSettings"
-  '';
 
   sourceRoot = "${src.name}/core";
 
@@ -66,11 +60,12 @@ buildPythonPackage rec {
     "pathspec"
     "protobuf"
     "pydantic"
+    "sqlparse"
     "urllib3"
   ];
 
   build-system = [
-    setuptools
+    hatchling
   ];
 
   dependencies = [
@@ -80,6 +75,7 @@ buildPythonPackage rec {
     dbt-adapters
     dbt-common
     dbt-extractor
+    dbt-protos
     dbt-semantic-interfaces
     jinja2
     logbook
@@ -129,7 +125,6 @@ buildPythonPackage rec {
     license = lib.licenses.asl20;
     maintainers = with lib.maintainers; [
       mausch
-      tjni
     ];
     mainProgram = "dbt";
   };

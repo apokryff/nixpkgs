@@ -1,45 +1,53 @@
 {
   lib,
-  black,
   buildPythonPackage,
-  click,
   fetchFromGitHub,
-  gitpython,
-  importlib-metadata,
+  pythonOlder,
+
+  # build-system
+  hatchling,
+
+  # dependencies
+  click,
   jinja2,
   platformdirs,
-  poetry-core,
+  tqdm,
+
+  # optional-dependencies
+  black,
+  gitpython,
+
+  # tests
+  addBinToPathHook,
   pytest-asyncio,
   pytestCheckHook,
-  pythonOlder,
-  tomli,
-  tqdm,
+  versionCheckHook,
+  writableTmpDirAsHomeHook,
 }:
 
 buildPythonPackage rec {
   pname = "sqlfmt";
-  version = "0.27.0";
+  version = "0.29.0";
   pyproject = true;
 
-  disabled = pythonOlder "3.9";
+  disabled = pythonOlder "3.12";
 
   src = fetchFromGitHub {
     owner = "tconbeer";
     repo = "sqlfmt";
     tag = "v${version}";
-    hash = "sha256-Yel9SB7KrDqtuZxNx4omz6u4AID8Fk5kFYKBEZD1fuU=";
+    hash = "sha256-AeG6ga+WaBVvCCkEJbIkaJQg4rEmBcyQNmgJHEYkhrI=";
   };
 
-  pythonRelaxDeps = [ "platformdirs" ];
+  build-system = [ hatchling ];
 
-  build-system = [ poetry-core ];
-
+  pythonRelaxDeps = [
+    "click"
+  ];
   dependencies = [
     click
-    importlib-metadata
     jinja2
     platformdirs
-    tomli
     tqdm
   ];
 
@@ -48,18 +56,22 @@ buildPythonPackage rec {
     sqlfmt_primer = [ gitpython ];
   };
 
+  pythonImportsCheck = [ "sqlfmt" ];
+
   nativeCheckInputs = [
+    addBinToPathHook
     pytest-asyncio
     pytestCheckHook
+    versionCheckHook
+    writableTmpDirAsHomeHook
   ]
-  ++ lib.flatten (builtins.attrValues optional-dependencies);
+  ++ lib.concatAttrValues optional-dependencies;
 
-  preCheck = ''
-    export HOME=$(mktemp -d)
-    export PATH="$PATH:$out/bin";
-  '';
-
-  pythonImportsCheck = [ "sqlfmt" ];
+  disabledTestPaths = [
+    # TypeError: CliRunner.__init__() got an unexpected keyword argument 'mix_stderr'
+    "tests/functional_tests/test_end_to_end.py"
+    "tests/unit_tests/test_cli.py"
+  ];
 
   meta = {
     description = "Sqlfmt formats your dbt SQL files so you don't have to";

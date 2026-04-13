@@ -14,14 +14,15 @@
   ml-dtypes,
   namex,
   numpy,
-  tf2onnx,
   onnxruntime,
   optree,
+  orbax-checkpoint,
   packaging,
   pythonAtLeast,
   rich,
   scikit-learn,
   tensorflow,
+  tf2onnx,
 
   # tests
   dm-tree,
@@ -34,16 +35,16 @@
   writableTmpDirAsHomeHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "keras";
-  version = "3.11.1";
+  version = "3.14.0";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "keras-team";
     repo = "keras";
-    tag = "v${version}";
-    hash = "sha256-jyNOL5u+XVVqChD7Fs3yJCcW14bTvitiQa4H4DTeja0=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-EMwqo+0mIwjDY3wKW4idiAczSSPIGjTRNIYlqPDwd+w=";
   };
 
   build-system = [
@@ -56,13 +57,14 @@ buildPythonPackage rec {
     ml-dtypes
     namex
     numpy
-    tf2onnx
     onnxruntime
     optree
+    orbax-checkpoint
     packaging
     rich
     scikit-learn
     tensorflow
+    tf2onnx
   ]
   ++ lib.optionals (pythonAtLeast "3.12") [ distutils ];
 
@@ -84,9 +86,36 @@ buildPythonPackage rec {
 
   disabledTests = [
     # Require unpackaged `grain`
+    "test_basics_grain"
     "test_fit_with_data_adapter_grain_dataloader"
     "test_fit_with_data_adapter_grain_datast"
     "test_fit_with_data_adapter_grain_datast_with_len"
+    "test_image_dataset_from_directory_binary_grain"
+    "test_image_dataset_from_directory_color_modes_grain"
+    "test_image_dataset_from_directory_crop_to_aspect_ratio_grain"
+    "test_image_dataset_from_directory_follow_links_grain"
+    "test_image_dataset_from_directory_manual_labels_grain"
+    "test_image_dataset_from_directory_multiclass_grain"
+    "test_image_dataset_from_directory_no_labels_grain"
+    "test_image_dataset_from_directory_not_batched_grain"
+    "test_image_dataset_from_directory_pad_to_aspect_ratio_grain"
+    "test_image_dataset_from_directory_shuffle_grain"
+    "test_image_dataset_from_directory_validation_split_grain"
+    "test_no_targets_grain"
+    "test_not_batched_grain"
+    "test_sample_count_grain"
+    "test_sampling_rate_grain"
+    "test_sequence_stride_grain"
+    "test_shuffle_grain"
+    "test_start_and_end_index_grain"
+    "test_text_dataset_from_directory_binary_grain"
+    "test_text_dataset_from_directory_follow_links_grain"
+    "test_text_dataset_from_directory_manual_labels_grain"
+    "test_text_dataset_from_directory_multiclass_grain"
+    "test_text_dataset_from_directory_not_batched_grain"
+    "test_text_dataset_from_directory_standalone_grain"
+    "test_text_dataset_from_directory_validation_split_grain"
+    "test_timeseries_regression_grain"
 
     # Tries to install the package in the sandbox
     "test_keras_imports"
@@ -101,6 +130,12 @@ buildPythonPackage rec {
 
   disabledTestPaths = [
     # Require unpackaged `grain`
+    "keras/src/layers/preprocessing/data_layer_test.py"
+    "keras/src/layers/preprocessing/discretization_test.py"
+    "keras/src/layers/preprocessing/image_preprocessing/resizing_test.py"
+    "keras/src/layers/preprocessing/rescaling_test.py"
+    "keras/src/layers/preprocessing/string_lookup_test.py"
+    "keras/src/layers/preprocessing/text_vectorization_test.py"
     "keras/src/trainers/data_adapters/grain_dataset_adapter_test.py"
 
     # These tests succeed when run individually, but crash within the full test suite:
@@ -133,8 +168,8 @@ buildPythonPackage rec {
   meta = {
     description = "Multi-backend implementation of the Keras API, with support for TensorFlow, JAX, and PyTorch";
     homepage = "https://keras.io";
-    changelog = "https://github.com/keras-team/keras/releases/tag/v${version}";
+    changelog = "https://github.com/keras-team/keras/releases/tag/${finalAttrs.src.tag}";
     license = lib.licenses.mit;
     maintainers = with lib.maintainers; [ GaetanLepage ];
   };
-}
+})

@@ -3,27 +3,27 @@
   buildGoModule,
   fetchFromGitHub,
   fetchNpmDeps,
+  imagemagick,
   npmHooks,
   nodejs,
   wails,
-  webkitgtk_4_0,
+  webkitgtk_4_1,
   pkg-config,
-  libsoup_3,
   copyDesktopItems,
   makeDesktopItem,
   autoPatchelfHook,
-  nix-update-script,
+  writeScript,
 }:
 
 buildGoModule (finalAttrs: {
   pname = "tiny-rdm";
-  version = "1.2.4";
+  version = "1.2.6";
 
   src = fetchFromGitHub {
     owner = "tiny-craft";
     repo = "tiny-rdm";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-wSTC9Ne/Q9LLZL2+8ObMFCXrf4VSI0LkZhHHbAiXCYE=";
+    hash = "sha256-t/dAhcMUT7p7MTlrEm/TRdHLRA5IvK9eeSB2+cWtCoY=";
   };
 
   postPatch = ''
@@ -31,13 +31,13 @@ buildGoModule (finalAttrs: {
       --replace-fail "prefStore.autoCheckUpdate" "false"
   '';
 
-  vendorHash = "sha256-Hh/qudoCZtIHJLsI6GQ814W4nC/uRd4gQd0PobzMlnQ=";
+  vendorHash = "sha256-G1pnEMTxGM3YjHDtSosj5GB6Zhc9PZcbcrjGB1omQvg=";
 
   env = {
     CGO_ENABLED = 1;
     npmDeps = fetchNpmDeps {
       src = "${finalAttrs.src}/frontend";
-      hash = "sha256-dcoTwfRocVjpBzqS9f2MkXjzcCI5sLjRZ3UC/Ml+7T0=";
+      hash = "sha256-DaRuxIRNXkafqzIJaJuttVeGXDrjjjpF2FtB1yFWPZw=";
     };
     npmRoot = "frontend";
   };
@@ -49,17 +49,15 @@ buildGoModule (finalAttrs: {
     nodejs
     npmHooks.npmConfigHook
     copyDesktopItems
+    imagemagick
   ];
 
-  buildInputs = [
-    webkitgtk_4_0
-    libsoup_3
-  ];
+  buildInputs = [ webkitgtk_4_1 ];
 
   buildPhase = ''
     runHook preBuild
 
-    wails build -m -trimpath -devtools -tags webkit2_40 -o tiny-rdm
+    wails build -m -trimpath -devtools -tags webkit2_41 -o tiny-rdm
 
     runHook postBuild
   '';
@@ -83,19 +81,35 @@ buildGoModule (finalAttrs: {
     runHook preInstall
 
     install -Dm 0755 build/bin/tiny-rdm $out/bin/tiny-rdm
-    install -Dm 0644 frontend/src/assets/images/icon.png $out/share/pixmaps/tiny-rdm.png
+    mkdir -p $out/share/icons/hicolor/96x96/apps
+    magick frontend/src/assets/images/icon.png -resize 96x96 $out/share/icons/hicolor/96x96/apps/tiny-rdm.png
 
     runHook postInstall
   '';
 
-  passthru.updateScript = nix-update-script { };
+  passthru = {
+    inherit (finalAttrs.env) npmDeps;
+    updateScript = writeScript "update-tiny-rdm" ''
+      #!/usr/bin/env nix-shell
+      #!nix-shell -i bash -p bash nix nix-update common-updater-scripts
+      set -eou pipefail
+      version=$(nix eval --log-format raw --raw --file default.nix tiny-rdm.version)
+      nix-update tiny-rdm || true
+      latestVersion=$(nix eval --log-format raw --raw --file default.nix tiny-rdm.version)
+      if [[ "$latestVersion" == "$version" ]]; then
+        exit 0
+      fi
+      update-source-version tiny-rdm "$latestVersion" --source-key=npmDeps --ignore-same-version
+      nix-update tiny-rdm --version skip
+    '';
+  };
 
   meta = {
     description = "Modern, colorful, super lightweight Redis GUI client";
     homepage = "https://github.com/tiny-craft/tiny-rdm";
     mainProgram = "tiny-rdm";
     license = with lib.licenses; [ gpl3Plus ];
-    maintainers = with lib.maintainers; [ ];
+    maintainers = [ ];
     platforms = lib.platforms.linux;
   };
 })

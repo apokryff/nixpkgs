@@ -1,4 +1,5 @@
 {
+  stdenv,
   comma,
   fetchFromGitHub,
   installShellFiles,
@@ -8,16 +9,17 @@
   nix,
   rustPlatform,
   testers,
+  buildPackages,
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "comma";
   version = "2.3.3";
 
   src = fetchFromGitHub {
     owner = "nix-community";
     repo = "comma";
-    rev = "v${version}";
+    rev = "v${finalAttrs.version}";
     hash = "sha256-dNek1a8Yt3icWc8ZpVe1NGuG+eSoTDOmAAJbkYmMocU=";
   };
 
@@ -48,8 +50,9 @@ rustPlatform.buildRustPackage rec {
       "$out/share/comma/command-not-found.nu" \
       "$out/share/comma/command-not-found.fish" \
       --replace-fail "comma --ask" "$out/bin/comma --ask"
-
-    "$out/bin/comma" --mangen > comma.1
+  ''
+  + lib.optionalString (stdenv.hostPlatform.emulatorAvailable buildPackages) ''
+    ${stdenv.hostPlatform.emulator buildPackages} "$out/bin/comma" --mangen > comma.1
     installManPage comma.1
   '';
 
@@ -57,11 +60,11 @@ rustPlatform.buildRustPackage rec {
     version = testers.testVersion { package = comma; };
   };
 
-  meta = with lib; {
+  meta = {
     homepage = "https://github.com/nix-community/comma";
     description = "Runs programs without installing them";
-    license = licenses.mit;
+    license = lib.licenses.mit;
     mainProgram = "comma";
-    maintainers = with maintainers; [ artturin ];
+    maintainers = with lib.maintainers; [ artturin ];
   };
-}
+})

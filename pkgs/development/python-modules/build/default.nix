@@ -12,39 +12,31 @@
   pytest-rerunfailures,
   pytest-xdist,
   pytestCheckHook,
-  pythonOlder,
   setuptools,
-  tomli,
   virtualenv,
   wheel,
 }:
 
 buildPythonPackage rec {
   pname = "build";
-  version = "1.2.2.post1";
-  format = "pyproject";
-
-  disabled = pythonOlder "3.7";
+  version = "1.4.0";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "pypa";
     repo = "build";
-    rev = "refs/tags/${version}";
-    hash = "sha256-PHS7CjdKo5u4VTpbo409zLQAOmslV9bX0j0S83Gdv1U=";
+    tag = version;
+    hash = "sha256-otaAFL87o+1YB5/ar2rlOpDjFCWOKs+gfqZImuWH8IA=";
   };
 
-  postPatch = ''
-    # not strictly required, causes circular dependency cycle
-    sed -i '/importlib-metadata >= 4.6/d' pyproject.toml
-  '';
+  build-system = [ flit-core ];
 
-  nativeBuildInputs = [ flit-core ];
+  pythonRemoveDeps = [ "importlib-metadata" ];
 
-  propagatedBuildInputs = [
+  dependencies = [
     packaging
     pyproject-hooks
-  ]
-  ++ lib.optionals (pythonOlder "3.11") [ tomli ];
+  ];
 
   # We need to disable tests because this package is part of the bootstrap chain
   # and its test dependencies cannot be built yet when this is being built.
@@ -54,7 +46,7 @@ buildPythonPackage rec {
     pytest = buildPythonPackage {
       pname = "${pname}-pytest";
       inherit src version;
-      format = "other";
+      pyproject = false;
 
       dontBuild = true;
       dontInstall = true;
@@ -99,7 +91,7 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "build" ];
 
-  meta = with lib; {
+  meta = {
     mainProgram = "pyproject-build";
     description = "Simple, correct PEP517 package builder";
     longDescription = ''
@@ -107,9 +99,9 @@ buildPythonPackage rec {
       is a simple build tool and does not perform any dependency management.
     '';
     homepage = "https://github.com/pypa/build";
-    changelog = "https://github.com/pypa/build/blob/${version}/CHANGELOG.rst";
-    license = licenses.mit;
-    maintainers = [ maintainers.fab ];
-    teams = [ teams.python ];
+    changelog = "https://github.com/pypa/build/blob/${src.tag}/CHANGELOG.rst";
+    license = lib.licenses.mit;
+    maintainers = [ lib.maintainers.fab ];
+    teams = [ lib.teams.python ];
   };
 }

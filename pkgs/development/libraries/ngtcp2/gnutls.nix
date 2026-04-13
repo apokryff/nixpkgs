@@ -8,17 +8,18 @@
   cunit,
   ncurses,
   knot-dns,
+  curlWithGnuTls,
 }:
 
 stdenv.mkDerivation rec {
   pname = "ngtcp2";
-  version = "1.14.0";
+  version = "1.22.0";
 
   src = fetchFromGitHub {
     owner = "ngtcp2";
     repo = "ngtcp2";
     rev = "v${version}";
-    hash = "sha256-TpfCfVhguFbTqQiY+zl6Kn7fsIQHR1tvNC4YLkxmBis=";
+    hash = "sha256-t747KntEWLNVnDgE/qj916fHsZzKa08oRDBqS9OQMQg=";
   };
 
   outputs = [
@@ -38,14 +39,16 @@ stdenv.mkDerivation rec {
   doCheck = true;
   nativeCheckInputs = [ cunit ] ++ lib.optional stdenv.hostPlatform.isDarwin ncurses;
 
-  passthru.tests = knot-dns.passthru.tests; # the only consumer so far
+  passthru.tests = knot-dns.passthru.tests // {
+    inherit curlWithGnuTls;
+  };
 
-  meta = with lib; {
+  meta = {
     homepage = "https://github.com/ngtcp2/ngtcp2";
     description = "Effort to implement RFC9000 QUIC protocol";
-    license = licenses.mit;
-    platforms = platforms.unix;
-    maintainers = with maintainers; [
+    license = lib.licenses.mit;
+    platforms = lib.platforms.unix;
+    maintainers = with lib.maintainers; [
       vcunat # for knot-dns
     ];
   };

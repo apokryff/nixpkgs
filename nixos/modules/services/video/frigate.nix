@@ -53,6 +53,7 @@ let
         cp ${configFileUnchecked} $out
         export CONFIG_FILE=$out
         export PYTHONPATH=${cfg.package.pythonPath}
+        ${cfg.preCheckConfig}
         ${cfg.package.python.interpreter} -m frigate --validate-config || error
       '';
   configFile = if cfg.checkConfig then configFileChecked else configFileUnchecked;
@@ -103,14 +104,16 @@ let
     # Send a subrequest to verify if the user is authenticated and has permission to access the resource.
     auth_request /auth;
 
-    # Save the upstream metadata response headers from Authelia to variables.
+    # Save the upstream metadata response headers from the auth request to variables
     auth_request_set $user $upstream_http_remote_user;
+    auth_request_set $role $upstream_http_remote_role;
     auth_request_set $groups $upstream_http_remote_groups;
     auth_request_set $name $upstream_http_remote_name;
     auth_request_set $email $upstream_http_remote_email;
 
     # Inject the metadata response headers from the variables into the request made to the backend.
     proxy_set_header Remote-User $user;
+    proxy_set_header Remote-Role $role;
     proxy_set_header Remote-Groups $groups;
     proxy_set_header Remote-Email $email;
     proxy_set_header Remote-Name $name;
@@ -188,19 +191,31 @@ in
 
         See also:
 
-        - https://docs.frigate.video/configuration/hardware_acceleration
-        - https://docs.frigate.video/configuration/ffmpeg_presets#hwaccel-presets
+        - <https://docs.frigate.video/configuration/hardware_acceleration>
+        - <https://docs.frigate.video/configuration/ffmpeg_presets#hwaccel-presets>
       '';
     };
 
     checkConfig = mkOption {
       type = bool;
-      default = pkgs.stdenv.buildPlatform.canExecute pkgs.stdenv.hostPlatform;
-      defaultText = literalExpression ''
+      default =
         pkgs.stdenv.buildPlatform.canExecute pkgs.stdenv.hostPlatform
+        && (!pkgs.stdenv.hostPlatform.isAarch64);
+      defaultText = literalExpression ''
+        pkgs.stdenv.buildPlatform.canExecute pkgs.stdenv.hostPlatform && !(pkgs.stdenv.hostPlaform.isAarch64)
       '';
       description = ''
         Whether to check the configuration at build time.
+      '';
+    };
+
+    preCheckConfig = mkOption {
+      type = types.lines;
+      default = "";
+      description = ''
+        This script gets run before the config is checked. It can be used to,
+        e.g., set environment variables needed or transform the config
+        (available as `$out`) to make it checkable in the sandbox.
       '';
     };
 
@@ -213,7 +228,7 @@ in
             description = ''
               Attribute set of cameras configurations.
 
-              https://docs.frigate.video/configuration/cameras
+              <https://docs.frigate.video/configuration/cameras>
             '';
           };
 
@@ -223,6 +238,17 @@ in
               default = "/var/lib/frigate/frigate.db";
               description = ''
                 Path to the SQLite database used
+              '';
+            };
+          };
+
+          ffmpeg = {
+            path = mkOption {
+              type = coercedTo package toString str;
+              default = pkgs.ffmpeg-headless;
+              example = literalExpression "pkgs.ffmpeg-full";
+              description = ''
+                Package providing the ffmpeg and ffprobe executables below the bin/ directory.
               '';
             };
           };
@@ -322,6 +348,10 @@ in
               proxy_set_header X-Forwarded-Groups $http_x_forwarded_groups;
               proxy_set_header X-Forwarded-Email $http_x_forwarded_email;
               proxy_set_header X-Forwarded-Preferred-Username $http_x_forwarded_preferred_username;
+              proxy_set_header X-Auth-Request-User $http_x_auth_request_user;
+              proxy_set_header X-Auth-Request-Groups $http_x_auth_request_groups;
+              proxy_set_header X-Auth-Request-Email $http_x_auth_request_email;
+              proxy_set_header X-Auth-Request-Preferred-Username $http_x_auth_request_preferred_username;
               proxy_set_header X-authentik-username $http_x_authentik_username;
               proxy_set_header X-authentik-groups $http_x_authentik_groups;
               proxy_set_header X-authentik-email $http_x_authentik_email;
@@ -336,6 +366,10 @@ in
               aio threads;
               vod hls;
 
+              # Use fMP4 (fragmented MP4) instead of MPEG-TS for better performance
+              # Smaller segments, faster generation, better browser compatibility
+              vod_hls_container_format fmp4;
+
               secure_token $args;
               secure_token_types application/vnd.apple.mpegurl;
 
@@ -343,7 +377,14 @@ in
               expires off;
 
               keepalive_disable safari;
+
+              # vod module returns 502 for non-existent media
+              # https://github.com/kaltura/nginx-vod-module/issues/468
+              error_page 502 =404 /vod-not-found;
             '';
+          };
+          "/vod-not-found" = {
+            return = 404;
           };
           "/stream/" = {
             alias = "/var/cache/frigate/stream/";
@@ -474,7 +515,7 @@ in
               nginxAuthRequest
               + nginxProxySettings
               + ''
-                limit_except GET {
+                limit_except POST {
                     deny  all;
                 }
               '';
@@ -522,6 +563,16 @@ in
                     ${nginxProxySettings}
                 }
 
+                location /api/auth/first_time_login {
+                    auth_request off;
+                    limit_except GET {
+                        deny all;
+                    }
+                    rewrite ^/api(/.*)$ $1 break;
+                    proxy_pass http://frigate-api;
+                    ${nginxProxySettings}
+                }
+
                 location /api/stats {
                     ${nginxAuthRequest}
                     access_log off;
@@ -549,6 +600,31 @@ in
               add_header Cache-Control "public";
             '';
           };
+          "/fonts" = {
+            root = cfg.package.web;
+            extraConfig = ''
+              access_log off;
+              expires 1y;
+              add_header Cache-Control "public";
+            '';
+          };
+          "/locales/" = {
+            root = cfg.package.web;
+            extraConfig = ''
+              access_log off;
+              add_header Cache-Control "public";
+            '';
+          };
+          "~ ^/.*-([A-Za-z0-9]+)\\.webmanifest$" = {
+            root = cfg.package.web;
+            extraConfig = ''
+              access_log off;
+              expires 1y;
+              add_header Cache-Control "public";
+              default_type application/json;
+              proxy_set_header Accept-Encoding "";
+            '';
+          };
           "/" = {
             root = cfg.package.web;
             tryFiles = "$uri $uri.html $uri/ /index.html";
@@ -564,6 +640,7 @@ in
           listen 127.0.0.1:5000;
 
           # vod settings
+          vod_hls_version 6;
           vod_base_url "";
           vod_segments_base_url "";
           vod_mode mapped;
@@ -573,6 +650,8 @@ in
           vod_manifest_segment_durations_mode accurate;
           vod_ignore_edit_list on;
           vod_segment_duration 10000;
+
+          # MPEG-TS settings (not used when fMP4 is enabled, kept for reference)
           vod_hls_mpegts_align_frames off;
           vod_hls_mpegts_interleave_frames on;
 
@@ -582,6 +661,9 @@ in
           open_file_cache_min_uses 1;
           open_file_cache_errors on;
           aio on;
+
+          # file upload size
+          client_max_body_size 20M;
 
           # https://github.com/kaltura/nginx-vod-module#vod_open_file_thread_pool
           vod_open_file_thread_pool default;
@@ -595,6 +677,7 @@ in
         '';
       };
       appendConfig = ''
+        # frigate
         rtmp {
             server {
                 listen 1935;
@@ -611,6 +694,7 @@ in
         }
       '';
       appendHttpConfig = ''
+        # frigate
         map $sent_http_content_type $should_not_cache {
           'application/json' 0;
           default 1;
@@ -657,7 +741,6 @@ in
         [
           # unfree:
           # config.boot.kernelPackages.nvidiaPackages.latest.bin
-          ffmpeg-headless
           libva-utils
           procps
           radeontop
@@ -670,13 +753,20 @@ in
       serviceConfig = {
         ExecStartPre = [
           (pkgs.writeShellScript "frigate-clear-cache" ''
-            shopt -s extglob
-            rm --recursive --force /var/cache/frigate/!(model_cache)
+            ${lib.getExe pkgs.findutils} /var/cache/frigate -not -path '/var/cache/frigate/model_cache/*' -type f -delete
           '')
           (pkgs.writeShellScript "frigate-create-writable-config" ''
             cp --no-preserve=mode ${configFile} /run/frigate/frigate.yml
           '')
+        ]
+        ++ lib.optionals (!config.systemd.services.frigate.environment ? LIBAVFORMAT_VERSION_MAJOR) [
+          # Extract libavformat version to enable version-dependent flags in ffmpeg
+          (pkgs.writeShellScript "frigate-libavformat-major-version" ''
+            echo "LIBAVFORMAT_VERSION_MAJOR=$(${cfg.settings.ffmpeg.path}/bin/ffmpeg -version | ${lib.getExe pkgs.gnugrep} -Po "libavformat\W+\K\d+")" > /run/frigate/ffmpeg-env
+            echo "Detected $(cat /run/frigate/ffmpeg-env)"
+          '')
         ];
+        EnvironmentFile = [ "-/run/frigate/ffmpeg-env" ];
         ExecStart = "${cfg.package.python.interpreter} -m frigate";
         Restart = "on-failure";
         SyslogIdentifier = "frigate";
@@ -706,6 +796,9 @@ in
 
         # Sockets/IPC
         RuntimeDirectory = "frigate";
+
+        # Reduce visible process scope to cgroup
+        ProtectProc = "invisible";
       };
     };
   };

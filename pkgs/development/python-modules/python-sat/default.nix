@@ -1,42 +1,60 @@
 {
   buildPythonPackage,
-  fetchFromGitHub,
+  fetchPypi,
   lib,
+  setuptools,
   six,
   pypblib,
   pytestCheckHook,
 }:
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "python-sat";
-  version = "0.1.8.dev17";
-  format = "setuptools";
+  version = "1.8.dev30";
+  pyproject = true;
 
-  src = fetchFromGitHub {
-    owner = "pysathq";
-    repo = "pysat";
-    rev = "a04763de6dafb8d3a0d7f1b231fc0d30be1de4c0"; # upstream does not tag releases
-    hash = "sha256-FG6oAAI8XKXumj6Ys2QjjYcRp1TpwkUZzyfpkdq5V6E=";
+  build-system = [ setuptools ];
+
+  src = fetchPypi {
+    inherit (finalAttrs) version;
+    pname = "python_sat";
+    hash = "sha256-KaR6NPD6wzA0WcYzq/ptRFBeI0Pfumz/S2rVlsDKnU4=";
   };
+
+  preBuild = ''
+    export MAKEFLAGS="-j$NIX_BUILD_CORES"
+  '';
 
   propagatedBuildInputs = [
     six
     pypblib
   ];
 
+  pythonImportsCheck = [
+    "pysat"
+    "pysat.examples"
+    "pysat.allies"
+  ];
+
   nativeCheckInputs = [ pytestCheckHook ];
 
-  disabledTestPaths = [ "tests/test_unique_mus.py" ];
+  # Due to `python -m pytest` appending the local directory to `PYTHONPATH`,
+  # importing `pysat.examples` in the tests fails. Removing the `pysat`
+  # directory fixes since then only the installed version in `$out` is
+  # imported, which has `pysat.examples` correctly installed.
+  # See https://github.com/NixOS/nixpkgs/issues/255262
+  preCheck = ''
+    rm -r pysat
+  '';
 
-  meta = with lib; {
-    description = "Toolkit to provide interface for various SAT (without optional dependancy py-aiger-cnf)";
+  meta = {
+    description = "Toolkit for SAT-based prototyping in Python (without optional dependencies)";
     homepage = "https://github.com/pysathq/pysat";
     changelog = "https://pysathq.github.io/updates/";
-    license = licenses.mit;
+    license = lib.licenses.mit;
     maintainers = [
-      maintainers.marius851000
-      maintainers.chrjabs
+      lib.maintainers.marius851000
+      lib.maintainers.chrjabs
     ];
     platforms = lib.platforms.all;
-    badPlatforms = lib.platforms.darwin ++ [ "i686-linux" ];
   };
-}
+})
